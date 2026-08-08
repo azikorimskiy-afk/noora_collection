@@ -12,7 +12,8 @@ from aiogram.types import (
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.states.order import OrderState
-from app.handlers.shop import get_cart, PRODUCTS
+from app.handlers.shop import get_cart
+from app.database.db import get_product
 
 order_router = Router()
 
