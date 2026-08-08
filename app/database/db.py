@@ -1,11 +1,13 @@
+
 import os
+
 import psycopg
 from psycopg.rows import dict_row
 
 
-# ==================================================
+# ============================================================
 # DATABASE CONNECTION
-# ==================================================
+# ============================================================
 
 def get_connection():
     database_url = os.getenv("DATABASE_URL")
@@ -22,19 +24,17 @@ def get_connection():
     )
 
 
-# ==================================================
+# ============================================================
 # DATABASE INIT
-# ==================================================
+# ============================================================
 
 def init_db():
-
     conn = get_connection()
 
     try:
-
-        # ==================================================
+        # ====================================================
         # PRODUCTS
-        # ==================================================
+        # ====================================================
 
         conn.execute("""
             CREATE TABLE IF NOT EXISTS products (
@@ -48,9 +48,9 @@ def init_db():
             )
         """)
 
-        # ==================================================
+        # ====================================================
         # CUSTOMERS
-        # ==================================================
+        # ====================================================
 
         conn.execute("""
             CREATE TABLE IF NOT EXISTS customers (
@@ -63,9 +63,9 @@ def init_db():
             )
         """)
 
-        # ==================================================
+        # ====================================================
         # ORDERS
-        # ==================================================
+        # ====================================================
 
         conn.execute("""
             CREATE TABLE IF NOT EXISTS orders (
@@ -80,9 +80,9 @@ def init_db():
             )
         """)
 
-        # ==================================================
+        # ====================================================
         # ORDER ITEMS
-        # ==================================================
+        # ====================================================
 
         conn.execute("""
             CREATE TABLE IF NOT EXISTS order_items (
@@ -105,7 +105,6 @@ def init_db():
         print("✅ PostgreSQL database tayyor!")
 
     except Exception as e:
-
         conn.rollback()
 
         print(
@@ -116,20 +115,17 @@ def init_db():
         raise
 
     finally:
-
         conn.close()
 
 
-# ==================================================
+# ============================================================
 # PRODUCTS
-# ==================================================
+# ============================================================
 
 def get_products():
-
     conn = get_connection()
 
     try:
-
         products = conn.execute("""
             SELECT *
             FROM products
@@ -139,18 +135,13 @@ def get_products():
         return products
 
     finally:
-
         conn.close()
 
 
-# ==================================================
-
 def get_product(product_id):
-
     conn = get_connection()
 
     try:
-
         product = conn.execute("""
             SELECT *
             FROM products
@@ -160,11 +151,8 @@ def get_product(product_id):
         return product
 
     finally:
-
         conn.close()
 
-
-# ==================================================
 
 def add_product(
     product_id,
@@ -174,11 +162,9 @@ def add_product(
     image,
     stock,
 ):
-
     conn = get_connection()
 
     try:
-
         conn.execute("""
             INSERT INTO products
             (
@@ -202,16 +188,12 @@ def add_product(
         conn.commit()
 
     except Exception:
-
         conn.rollback()
         raise
 
     finally:
-
         conn.close()
 
-
-# ==================================================
 
 def update_product(
     product_id,
@@ -221,11 +203,9 @@ def update_product(
     image,
     stock,
 ):
-
     conn = get_connection()
 
     try:
-
         conn.execute("""
             UPDATE products
             SET
@@ -247,23 +227,17 @@ def update_product(
         conn.commit()
 
     except Exception:
-
         conn.rollback()
         raise
 
     finally:
-
         conn.close()
 
 
-# ==================================================
-
 def delete_product(product_id):
-
     conn = get_connection()
 
     try:
-
         conn.execute("""
             DELETE FROM products
             WHERE product_id = %s
@@ -272,18 +246,16 @@ def delete_product(product_id):
         conn.commit()
 
     except Exception:
-
         conn.rollback()
         raise
 
     finally:
-
         conn.close()
 
 
-# ==================================================
-# CUSTOMER
-# ==================================================
+# ============================================================
+# CUSTOMERS
+# ============================================================
 
 def save_customer(
     telegram_id,
@@ -291,11 +263,9 @@ def save_customer(
     phone,
     address,
 ):
-
     conn = get_connection()
 
     try:
-
         conn.execute("""
             INSERT INTO customers
             (
@@ -321,18 +291,48 @@ def save_customer(
         conn.commit()
 
     except Exception:
-
         conn.rollback()
         raise
 
     finally:
-
         conn.close()
 
 
-# ==================================================
+def get_customer(telegram_id):
+    conn = get_connection()
+
+    try:
+        customer = conn.execute("""
+            SELECT *
+            FROM customers
+            WHERE telegram_id = %s
+        """, (telegram_id,)).fetchone()
+
+        return customer
+
+    finally:
+        conn.close()
+
+
+def get_customers():
+    conn = get_connection()
+
+    try:
+        customers = conn.execute("""
+            SELECT *
+            FROM customers
+            ORDER BY id DESC
+        """).fetchall()
+
+        return customers
+
+    finally:
+        conn.close()
+
+
+# ============================================================
 # CREATE ORDER
-# ==================================================
+# ============================================================
 
 def create_order(
     telegram_id,
@@ -342,14 +342,12 @@ def create_order(
     total,
     items,
 ):
-
     conn = get_connection()
 
     try:
-
-        # ==================================================
+        # ====================================================
         # ORDER
-        # ==================================================
+        # ====================================================
 
         cursor = conn.execute("""
             INSERT INTO orders
@@ -374,13 +372,13 @@ def create_order(
 
         order_id = cursor.fetchone()["id"]
 
-        # ==================================================
-        # ORDER ITEMS
-        # ==================================================
+        # ====================================================
+        # ORDER ITEMS + STOCK
+        # ====================================================
 
         for item in items:
 
-            # Avval stockni tekshirib kamaytiramiz.
+            # Ombordagi mahsulotni atomik tarzda kamaytiramiz.
             result = conn.execute("""
                 UPDATE products
                 SET stock = stock - %s
@@ -394,7 +392,6 @@ def create_order(
             )).fetchone()
 
             if not result:
-
                 raise ValueError(
                     f"Mahsulot qoldig'i yetarli emas: "
                     f"{item['product_id']}"
@@ -425,25 +422,21 @@ def create_order(
         return order_id
 
     except Exception:
-
         conn.rollback()
         raise
 
     finally:
-
         conn.close()
 
 
-# ==================================================
+# ============================================================
 # GET ORDER
-# ==================================================
+# ============================================================
 
 def get_order(order_id):
-
     conn = get_connection()
 
     try:
-
         order = conn.execute("""
             SELECT *
             FROM orders
@@ -453,20 +446,17 @@ def get_order(order_id):
         return order
 
     finally:
-
         conn.close()
 
 
-# ==================================================
+# ============================================================
 # GET ORDER ITEMS
-# ==================================================
+# ============================================================
 
 def get_order_items(order_id):
-
     conn = get_connection()
 
     try:
-
         items = conn.execute("""
             SELECT *
             FROM order_items
@@ -477,20 +467,17 @@ def get_order_items(order_id):
         return items
 
     finally:
-
         conn.close()
 
 
-# ==================================================
+# ============================================================
 # GET ALL ORDERS
-# ==================================================
+# ============================================================
 
 def get_orders():
-
     conn = get_connection()
 
     try:
-
         orders = conn.execute("""
             SELECT *
             FROM orders
@@ -500,23 +487,41 @@ def get_orders():
         return orders
 
     finally:
-
         conn.close()
 
 
-# ==================================================
+# ============================================================
+# GET USER ORDERS
+# ============================================================
+
+def get_user_orders(telegram_id):
+    conn = get_connection()
+
+    try:
+        orders = conn.execute("""
+            SELECT *
+            FROM orders
+            WHERE telegram_id = %s
+            ORDER BY id DESC
+        """, (telegram_id,)).fetchall()
+
+        return orders
+
+    finally:
+        conn.close()
+
+
+# ============================================================
 # UPDATE ORDER STATUS
-# ==================================================
+# ============================================================
 
 def update_order_status(
     order_id,
     status,
 ):
-
     conn = get_connection()
 
     try:
-
         conn.execute("""
             UPDATE orders
             SET status = %s
@@ -529,48 +534,21 @@ def update_order_status(
         conn.commit()
 
     except Exception:
-
         conn.rollback()
         raise
 
     finally:
-
         conn.close()
 
 
-# ==================================================
-# CUSTOMERS
-# ==================================================
-
-def get_customers():
-
-    conn = get_connection()
-
-    try:
-
-        customers = conn.execute("""
-            SELECT *
-            FROM customers
-            ORDER BY id DESC
-        """).fetchall()
-
-        return customers
-
-    finally:
-
-        conn.close()
-
-
-# ==================================================
+# ============================================================
 # STATISTICS
-# ==================================================
+# ============================================================
 
 def get_statistics():
-
     conn = get_connection()
 
     try:
-
         products_count = conn.execute("""
             SELECT COUNT(*)
             FROM products
@@ -607,5 +585,4 @@ def get_statistics():
         }
 
     finally:
-
         conn.close()
