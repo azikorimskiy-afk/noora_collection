@@ -6,6 +6,9 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.handlers.shop import PRODUCTS
+from aiogram.fsm.context import FSMContext
+from app.states.admin import AddProductState
+from app.database.db import add_product
 
 admin_router = Router()
 
