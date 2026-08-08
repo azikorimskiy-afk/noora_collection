@@ -1,3 +1,4 @@
+```python
 import os
 
 from aiogram import Router, F
@@ -6,19 +7,23 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.handlers.shop import PRODUCTS
 from app.states.admin import AddProductState
-from app.database.db import add_product
+from app.database.db import (
+    add_product,
+    get_products,
+    get_product,
+)
 
 
 admin_router = Router()
 
 
-# =========================
+# ==================================================
 # ADMIN TEKSHIRISH
-# =========================
+# ==================================================
 
 def is_admin(user_id: int) -> bool:
+
     admin_id = os.getenv("ADMIN_ID")
 
     if not admin_id:
@@ -30,17 +35,19 @@ def is_admin(user_id: int) -> bool:
         return False
 
 
-# =========================
+# ==================================================
 # ADMIN PANEL
-# =========================
+# ==================================================
 
 @admin_router.message(Command("admin"))
 async def admin_panel(message: Message):
 
     if not is_admin(message.from_user.id):
+
         await message.answer(
             "⛔ Sizda admin panelga kirish huquqi yo‘q."
         )
+
         return
 
     builder = InlineKeyboardBuilder()
@@ -74,28 +81,66 @@ async def admin_panel(message: Message):
     )
 
 
-# =========================
+# ==================================================
 # MAHSULOTLAR
-# =========================
+# ==================================================
 
-@admin_router.callback_query(F.data == "admin_products")
-async def admin_products(callback: CallbackQuery):
+@admin_router.callback_query(
+    F.data == "admin_products"
+)
+async def admin_products(
+    callback: CallbackQuery,
+):
 
     if not is_admin(callback.from_user.id):
+
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
             show_alert=True,
         )
+
         return
+
+    products = get_products()
 
     builder = InlineKeyboardBuilder()
 
-    for product_id, product in PRODUCTS.items():
+    if products:
+
+        for product in products:
+
+            builder.button(
+                text=product["name"],
+                callback_data=(
+                    f"admin_product:"
+                    f"{product['product_id']}"
+                ),
+            )
+
+    else:
+
+        await callback.message.edit_text(
+            "📦 <b>MAHSULOTLAR</b>\n\n"
+            "Hozircha mahsulotlar yo‘q.",
+        )
 
         builder.button(
-            text=product["name"],
-            callback_data=f"admin_product:{product_id}",
+            text="➕ Mahsulot qo‘shish",
+            callback_data="admin_add_product",
         )
+
+        builder.button(
+            text="⬅️ Admin panel",
+            callback_data="admin_back",
+        )
+
+        await callback.message.edit_reply_markup(
+            reply_markup=builder.as_markup()
+        )
+
+        await callback.answer()
+
+        return
 
     builder.button(
         text="➕ Mahsulot qo‘shish",
@@ -118,31 +163,37 @@ async def admin_products(callback: CallbackQuery):
     await callback.answer()
 
 
-# =========================
+# ==================================================
 # MAHSULOT
-# =========================
+# ==================================================
 
 @admin_router.callback_query(
     F.data.startswith("admin_product:")
 )
-async def admin_product(callback: CallbackQuery):
+async def admin_product(
+    callback: CallbackQuery,
+):
 
     if not is_admin(callback.from_user.id):
+
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
             show_alert=True,
         )
+
         return
 
     product_id = callback.data.split(":")[1]
 
-    product = PRODUCTS.get(product_id)
+    product = get_product(product_id)
 
     if not product:
+
         await callback.answer(
-            "Mahsulot topilmadi!",
+            "❌ Mahsulot topilmadi!",
             show_alert=True,
         )
+
         return
 
     builder = InlineKeyboardBuilder()
@@ -167,25 +218,34 @@ async def admin_product(callback: CallbackQuery):
     await callback.message.edit_text(
         f"<b>{product['name']}</b>\n\n"
         f"📝 {product['description']}\n\n"
-        f"💰 Narx: {product['price']:,} so‘m",
+        f"💰 Narx: "
+        f"{product['price']:,} so‘m\n"
+        f"📦 Qoldiq: "
+        f"{product['stock']} dona",
         reply_markup=builder.as_markup(),
     )
 
     await callback.answer()
 
 
-# =========================
+# ==================================================
 # ADMIN ORQAGA
-# =========================
+# ==================================================
 
-@admin_router.callback_query(F.data == "admin_back")
-async def admin_back(callback: CallbackQuery):
+@admin_router.callback_query(
+    F.data == "admin_back"
+)
+async def admin_back(
+    callback: CallbackQuery,
+):
 
     if not is_admin(callback.from_user.id):
+
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
             show_alert=True,
         )
+
         return
 
     builder = InlineKeyboardBuilder()
@@ -234,10 +294,12 @@ async def admin_add_product(
 ):
 
     if not is_admin(callback.from_user.id):
+
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
             show_alert=True,
         )
+
         return
 
     await state.clear()
@@ -269,17 +331,32 @@ async def product_id_received(
 ):
 
     if not message.text:
+
         await message.answer(
             "❗ ID matn ko‘rinishida bo‘lishi kerak."
         )
+
         return
 
     product_id = message.text.strip().lower()
 
     if not product_id:
+
         await message.answer(
             "❗ ID bo‘sh bo‘lmasligi kerak."
         )
+
+        return
+
+    existing = get_product(product_id)
+
+    if existing:
+
+        await message.answer(
+            "❌ Bu ID allaqachon mavjud.\n\n"
+            "Boshqa ID kiriting."
+        )
+
         return
 
     await state.update_data(
@@ -292,7 +369,7 @@ async def product_id_received(
 
     await message.answer(
         "📦 <b>2/6</b>\n\n"
-        "Endi mahsulot nomini kiriting.\n\n"
+        "Mahsulot nomini kiriting.\n\n"
         "Masalan:\n"
         "<b>📿 Tasbeh Premium</b>"
     )
@@ -311,17 +388,21 @@ async def product_name_received(
 ):
 
     if not message.text:
+
         await message.answer(
             "❗ Mahsulot nomini kiriting."
         )
+
         return
 
     name = message.text.strip()
 
     if len(name) < 2:
+
         await message.answer(
             "❗ Mahsulot nomi juda qisqa."
         )
+
         return
 
     await state.update_data(
@@ -353,26 +434,34 @@ async def product_price_received(
 ):
 
     if not message.text:
+
         await message.answer(
             "❗ Narxni kiriting."
         )
+
         return
 
     try:
+
         price = int(
             message.text.replace(" ", "")
         )
+
     except ValueError:
+
         await message.answer(
             "❗ Narxni faqat raqam bilan kiriting.\n\n"
             "Masalan: <code>75000</code>"
         )
+
         return
 
     if price <= 0:
+
         await message.answer(
             "❗ Narx 0 dan katta bo‘lishi kerak."
         )
+
         return
 
     await state.update_data(
@@ -402,9 +491,11 @@ async def product_description_received(
 ):
 
     if not message.text:
+
         await message.answer(
             "❗ Tavsifni yozing."
         )
+
         return
 
     description = message.text.strip()
@@ -429,7 +520,7 @@ async def product_description_received(
 
 @admin_router.message(
     AddProductState.waiting_image,
-    F.photo
+    F.photo,
 )
 async def product_image_received(
     message: Message,
@@ -462,7 +553,7 @@ async def product_image_error(
 ):
 
     await message.answer(
-        "❗ Iltimos, <b>rasm</b> yuboring."
+        "❗ Iltimos, mahsulot rasmini yuboring."
     )
 
 
@@ -479,26 +570,34 @@ async def product_stock_received(
 ):
 
     if not message.text:
+
         await message.answer(
             "❗ Qoldiq sonini kiriting."
         )
+
         return
 
     try:
+
         stock = int(
             message.text.strip()
         )
+
     except ValueError:
+
         await message.answer(
             "❗ Qoldiqni faqat raqam bilan kiriting.\n\n"
             "Masalan: <code>50</code>"
         )
+
         return
 
     if stock < 0:
+
         await message.answer(
             "❗ Qoldiq manfiy bo‘lishi mumkin emas."
         )
+
         return
 
     data = await state.get_data()
@@ -522,11 +621,11 @@ async def product_stock_received(
         )
 
         await message.answer(
-            "❌ Mahsulot qo‘shishda xatolik.\n\n"
-            "Ehtimol bu ID allaqachon mavjud."
+            "❌ Mahsulot qo‘shishda xatolik yuz berdi."
         )
 
         await state.clear()
+
         return
 
     await state.clear()
@@ -537,3 +636,4 @@ async def product_stock_received(
         f"💰 {data['price']:,} so‘m\n"
         f"📦 Qoldiq: {stock} dona"
     )
+```
