@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from app.handlers.shop import shop_router
 from app.handlers.order import order_router
 from app.handlers.admin import admin_router
+from app.database.db import init_db
 
 load_dotenv()
 
@@ -21,6 +22,7 @@ dp.include_router(order_router)
 dp.include_router(admin_router)
 
 async def main():
+    init_db()
     bot = Bot(
         token=BOT_TOKEN,
         default=DefaultBotProperties(
