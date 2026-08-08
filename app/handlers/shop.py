@@ -10,27 +10,32 @@ PRODUCTS = {
     "tasbeh": {
         "name": "📿 Tasbeh",
         "price": 50000,
-        "description": "Chiroyli va sifatli tasbeh."
+        "description": "Chiroyli va sifatli tasbeh.",
+        "image": "https://i.imgur.com/placeholder.jpg"
     },
     "joynamoz": {
         "name": "🕌 Joynamoz",
         "price": 150000,
-        "description": "Yumshoq va sifatli joynamoz."
+        "description": "Yumshoq va sifatli joynamoz.",
+        "image": "https://i.imgur.com/placeholder.jpg"
     },
     "himor": {
         "name": "🧕 Himor",
         "price": 120000,
-        "description": "Qulay va chiroyli himor."
+        "description": "Qulay va chiroyli himor.",
+        "image": "https://i.imgur.com/placeholder.jpg"
     },
     "abaya": {
         "name": "👗 Abaya",
         "price": 350000,
-        "description": "Zamonaviy va nafis abaya."
+        "description": "Zamonaviy va nafis abaya.",
+        "image": "https://i.imgur.com/placeholder.jpg"
     },
     "doppi": {
         "name": "🧢 Do‘ppi",
         "price": 80000,
-        "description": "Milliy uslubdagi chiroyli do‘ppi."
+        "description": "Milliy uslubdagi chiroyli do‘ppi.",
+        "image": "https://i.imgur.com/placeholder.jpg"
     }
 }
 
@@ -53,7 +58,7 @@ async def start_handler(message: Message):
 
     await message.answer(
         "Assalomu alaykum! 👋\n\n"
-        "🛍 NOORA do‘koniga xush kelibsiz!\n\n"
+        "🛍 <b>NOORA</b> do‘koniga xush kelibsiz!\n\n"
         "Kerakli bo‘limni tanlang:",
         reply_markup=builder.as_markup()
     )
@@ -78,7 +83,7 @@ async def catalog_handler(callback: CallbackQuery):
 
     await callback.message.edit_text(
         "🛍 <b>KATALOG</b>\n\n"
-        "Kerakli mahsulotni tanlang:",
+        "Mahsulotni tanlang:",
         reply_markup=builder.as_markup()
     )
 
@@ -104,10 +109,15 @@ async def product_handler(callback: CallbackQuery):
 
     builder.adjust(1)
 
-    await callback.message.edit_text(
-        f"<b>{product['name']}</b>\n\n"
-        f"📝 {product['description']}\n\n"
-        f"💰 Narxi: <b>{product['price']:,} so‘m</b>",
+    await callback.message.delete()
+
+    await callback.message.answer_photo(
+        photo=product["image"],
+        caption=(
+            f"<b>{product['name']}</b>\n\n"
+            f"📝 {product['description']}\n\n"
+            f"💰 Narxi: <b>{product['price']:,} so‘m</b>"
+        ),
         reply_markup=builder.as_markup()
     )
 
