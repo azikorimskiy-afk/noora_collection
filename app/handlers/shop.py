@@ -1,289 +1,24 @@
-
+```python
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.database.db import (
-    get_connection,
     get_products,
     get_product,
+    get_cart,
+    add_to_cart,
+    set_cart_quantity,
+    clear_cart,
 )
 
 shop_router = Router()
 
 
-# ==================================================
-# POSTGRESQL SAVATCHA
-# ==================================================
-
-class Cart:
-    """
-    PostgreSQL bilan ishlaydigan savatcha.
-
-    Oddiy dict kabi ishlaydi:
-        cart.get(...)
-        cart[product_id] = quantity
-        cart.items()
-        cart.clear()
-    """
-
-    def __init__(self, user_id: int):
-        self.user_id = user_id
-
-    # --------------------------------------------------
-    # CART ID OLISH / YARATISH
-    # --------------------------------------------------
-
-    def _get_cart_id(self):
-        conn = get_connection()
-
-        try:
-            row = conn.execute(
-                """
-                SELECT id
-                FROM carts
-                WHERE telegram_id = %s
-                """,
-                (self.user_id,),
-            ).fetchone()
-
-            if row:
-                return row["id"]
-
-            row = conn.execute(
-                """
-                INSERT INTO carts (telegram_id)
-                VALUES (%s)
-                RETURNING id
-                """,
-                (self.user_id,),
-            ).fetchone()
-
-            conn.commit()
-
-            return row["id"]
-
-        except Exception:
-            conn.rollback()
-            raise
-
-        finally:
-            conn.close()
-
-    # --------------------------------------------------
-    # BARCHA MAHSULOTLAR
-    # --------------------------------------------------
-
-    def _get_items(self):
-        cart_id = self._get_cart_id()
-
-        conn = get_connection()
-
-        try:
-            rows = conn.execute(
-                """
-                SELECT
-                    product_id,
-                    quantity
-                FROM cart_items
-                WHERE cart_id = %s
-                ORDER BY id
-                """,
-                (cart_id,),
-            ).fetchall()
-
-            return {
-                row["product_id"]: row["quantity"]
-                for row in rows
-            }
-
-        finally:
-            conn.close()
-
-    # --------------------------------------------------
-    # GET
-    # --------------------------------------------------
-
-    def get(self, product_id, default=0):
-        items = self._get_items()
-
-        return items.get(product_id, default)
-
-    # --------------------------------------------------
-    # SET
-    # --------------------------------------------------
-
-    def __setitem__(self, product_id, quantity):
-
-        cart_id = self._get_cart_id()
-
-        conn = get_connection()
-
-        try:
-
-            if quantity <= 0:
-
-                conn.execute(
-                    """
-                    DELETE FROM cart_items
-                    WHERE cart_id = %s
-                    AND product_id = %s
-                    """,
-                    (
-                        cart_id,
-                        product_id,
-                    ),
-                )
-
-            else:
-
-                conn.execute(
-                    """
-                    INSERT INTO cart_items
-                    (
-                        cart_id,
-                        product_id,
-                        quantity
-                    )
-                    VALUES (%s, %s, %s)
-
-                    ON CONFLICT (cart_id, product_id)
-                    DO UPDATE SET
-                        quantity = EXCLUDED.quantity
-                    """,
-                    (
-                        cart_id,
-                        product_id,
-                        quantity,
-                    ),
-                )
-
-            conn.commit()
-
-        except Exception:
-            conn.rollback()
-            raise
-
-        finally:
-            conn.close()
-
-    # --------------------------------------------------
-    # DELETE
-    # --------------------------------------------------
-
-    def __delitem__(self, product_id):
-
-        cart_id = self._get_cart_id()
-
-        conn = get_connection()
-
-        try:
-
-            conn.execute(
-                """
-                DELETE FROM cart_items
-                WHERE cart_id = %s
-                AND product_id = %s
-                """,
-                (
-                    cart_id,
-                    product_id,
-                ),
-            )
-
-            conn.commit()
-
-        except Exception:
-            conn.rollback()
-            raise
-
-        finally:
-            conn.close()
-
-    # --------------------------------------------------
-    # ITEMS
-    # --------------------------------------------------
-
-    def items(self):
-        return self._get_items().items()
-
-    # --------------------------------------------------
-    # KEYS
-    # --------------------------------------------------
-
-    def keys(self):
-        return self._get_items().keys()
-
-    # --------------------------------------------------
-    # VALUES
-    # --------------------------------------------------
-
-    def values(self):
-        return self._get_items().values()
-
-    # --------------------------------------------------
-    # LEN
-    # --------------------------------------------------
-
-    def __len__(self):
-        return len(self._get_items())
-
-    # --------------------------------------------------
-    # BOOL
-    # --------------------------------------------------
-
-    def __bool__(self):
-        return bool(self._get_items())
-
-    # --------------------------------------------------
-    # ITER
-    # --------------------------------------------------
-
-    def __iter__(self):
-        return iter(self._get_items())
-
-    # --------------------------------------------------
-    # CLEAR
-    # --------------------------------------------------
-
-    def clear(self):
-
-        cart_id = self._get_cart_id()
-
-        conn = get_connection()
-
-        try:
-
-            conn.execute(
-                """
-                DELETE FROM cart_items
-                WHERE cart_id = %s
-                """,
-                (cart_id,),
-            )
-
-            conn.commit()
-
-        except Exception:
-            conn.rollback()
-            raise
-
-        finally:
-            conn.close()
-
-
-# ==================================================
-# GET CART
-# ==================================================
-
-def get_cart(user_id: int):
-    return Cart(user_id)
-
-
-# ==================================================
+# ============================================================
 # MAHSULOTLAR DICT
-# ==================================================
+# ============================================================
 
 def products_dict():
 
@@ -304,9 +39,9 @@ def products_dict():
     return result
 
 
-# ==================================================
+# ============================================================
 # KATALOG
-# ==================================================
+# ============================================================
 
 async def show_catalog(callback: CallbackQuery):
 
@@ -370,9 +105,9 @@ async def show_catalog(callback: CallbackQuery):
         )
 
 
-# ==================================================
+# ============================================================
 # SAVATCHA MATNI
-# ==================================================
+# ============================================================
 
 def cart_text(user_id: int):
 
@@ -416,9 +151,9 @@ def cart_text(user_id: int):
     return text
 
 
-# ==================================================
+# ============================================================
 # SAVATCHA TUGMALARI
-# ==================================================
+# ============================================================
 
 def cart_keyboard(user_id: int):
 
@@ -436,7 +171,7 @@ def cart_keyboard(user_id: int):
             continue
 
         builder.button(
-            text=f"➖ {product['name']} {quantity} ➕",
+            text=f"📦 {product['name']} — {quantity} dona",
             callback_data=f"quantity:{product_id}",
         )
 
@@ -462,9 +197,9 @@ def cart_keyboard(user_id: int):
     return builder.as_markup()
 
 
-# ==================================================
+# ============================================================
 # SAVATCHANI KO‘RSATISH
-# ==================================================
+# ============================================================
 
 async def show_cart(callback: CallbackQuery):
 
@@ -493,9 +228,9 @@ async def show_cart(callback: CallbackQuery):
         )
 
 
-# ==================================================
+# ============================================================
 # START
-# ==================================================
+# ============================================================
 
 @shop_router.message(CommandStart())
 async def start_handler(message: Message):
@@ -522,9 +257,9 @@ async def start_handler(message: Message):
     )
 
 
-# ==================================================
+# ============================================================
 # KATALOG
-# ==================================================
+# ============================================================
 
 @shop_router.callback_query(F.data == "catalog")
 async def catalog_handler(
@@ -536,9 +271,9 @@ async def catalog_handler(
     await callback.answer()
 
 
-# ==================================================
+# ============================================================
 # MAHSULOT
-# ==================================================
+# ============================================================
 
 @shop_router.callback_query(
     F.data.startswith("product:")
@@ -623,14 +358,14 @@ async def product_handler(
     await callback.answer()
 
 
-# ==================================================
+# ============================================================
 # SAVATGA QO‘SHISH
-# ==================================================
+# ============================================================
 
 @shop_router.callback_query(
     F.data.startswith("add:")
 )
-async def add_to_cart(
+async def add_to_cart_handler(
     callback: CallbackQuery,
 ):
 
@@ -647,14 +382,23 @@ async def add_to_cart(
 
         return
 
-    cart = get_cart(
-        callback.from_user.id
-    )
+    user_id = callback.from_user.id
+
+    cart = get_cart(user_id)
 
     current_quantity = cart.get(
         product_id,
         0,
     )
+
+    if product["stock"] <= 0:
+
+        await callback.answer(
+            "❌ Mahsulot omborda qolmagan!",
+            show_alert=True,
+        )
+
+        return
 
     if current_quantity >= product["stock"]:
 
@@ -665,9 +409,22 @@ async def add_to_cart(
 
         return
 
-    cart[product_id] = (
-        current_quantity + 1
-    )
+    try:
+
+        add_to_cart(
+            telegram_id=user_id,
+            product_id=product_id,
+            quantity=1,
+        )
+
+    except ValueError as e:
+
+        await callback.answer(
+            f"❌ {e}",
+            show_alert=True,
+        )
+
+        return
 
     await callback.answer(
         "🛒 Mahsulot savatchaga qo‘shildi!"
@@ -676,9 +433,9 @@ async def add_to_cart(
     await show_cart(callback)
 
 
-# ==================================================
+# ============================================================
 # SAVATCHA
-# ==================================================
+# ============================================================
 
 @shop_router.callback_query(
     F.data == "cart"
@@ -692,9 +449,9 @@ async def cart_handler(
     await callback.answer()
 
 
-# ==================================================
+# ============================================================
 # MIQDOR
-# ==================================================
+# ============================================================
 
 @shop_router.callback_query(
     F.data.startswith("quantity:")
@@ -705,9 +462,9 @@ async def quantity_handler(
 
     product_id = callback.data.split(":")[1]
 
-    cart = get_cart(
-        callback.from_user.id
-    )
+    user_id = callback.from_user.id
+
+    cart = get_cart(user_id)
 
     quantity = cart.get(
         product_id,
@@ -721,8 +478,17 @@ async def quantity_handler(
     if not product:
 
         await callback.answer(
-            "Mahsulot topilmadi!"
+            "❌ Mahsulot topilmadi!",
+            show_alert=True,
         )
+
+        return
+
+    if quantity <= 0:
+
+        await show_cart(callback)
+
+        await callback.answer()
 
         return
 
@@ -752,6 +518,8 @@ async def quantity_handler(
 
     await callback.message.edit_text(
         f"📦 <b>{product['name']}</b>\n\n"
+        f"💰 Narxi: {product['price']:,} so‘m\n"
+        f"📦 Omborda: {product['stock']} dona\n\n"
         "Miqdorni tanlang:",
         reply_markup=builder.as_markup(),
     )
@@ -759,9 +527,9 @@ async def quantity_handler(
     await callback.answer()
 
 
-# ==================================================
+# ============================================================
 # PLUS
-# ==================================================
+# ============================================================
 
 @shop_router.callback_query(
     F.data.startswith("plus:")
@@ -772,9 +540,9 @@ async def plus_handler(
 
     product_id = callback.data.split(":")[1]
 
-    cart = get_cart(
-        callback.from_user.id
-    )
+    user_id = callback.from_user.id
+
+    cart = get_cart(user_id)
 
     product = get_product(
         product_id
@@ -783,7 +551,8 @@ async def plus_handler(
     if not product:
 
         await callback.answer(
-            "Mahsulot topilmadi!"
+            "❌ Mahsulot topilmadi!",
+            show_alert=True,
         )
 
         return
@@ -802,16 +571,31 @@ async def plus_handler(
 
         return
 
-    cart[product_id] = current + 1
+    try:
+
+        set_cart_quantity(
+            telegram_id=user_id,
+            product_id=product_id,
+            quantity=current + 1,
+        )
+
+    except ValueError as e:
+
+        await callback.answer(
+            f"❌ {e}",
+            show_alert=True,
+        )
+
+        return
 
     await show_cart(callback)
 
     await callback.answer()
 
 
-# ==================================================
+# ============================================================
 # MINUS
-# ==================================================
+# ============================================================
 
 @shop_router.callback_query(
     F.data.startswith("minus:")
@@ -822,33 +606,61 @@ async def minus_handler(
 
     product_id = callback.data.split(":")[1]
 
-    cart = get_cart(
-        callback.from_user.id
+    user_id = callback.from_user.id
+
+    cart = get_cart(user_id)
+
+    quantity = cart.get(
+        product_id,
+        0,
     )
 
-    if product_id in cart:
+    if quantity <= 1:
 
-        quantity = cart.get(
-            product_id,
-            0,
-        )
+        try:
 
-        if quantity <= 1:
+            set_cart_quantity(
+                telegram_id=user_id,
+                product_id=product_id,
+                quantity=0,
+            )
 
-            del cart[product_id]
+        except ValueError as e:
 
-        else:
+            await callback.answer(
+                f"❌ {e}",
+                show_alert=True,
+            )
 
-            cart[product_id] = quantity - 1
+            return
+
+    else:
+
+        try:
+
+            set_cart_quantity(
+                telegram_id=user_id,
+                product_id=product_id,
+                quantity=quantity - 1,
+            )
+
+        except ValueError as e:
+
+            await callback.answer(
+                f"❌ {e}",
+                show_alert=True,
+            )
+
+            return
 
     await show_cart(callback)
 
     await callback.answer()
 
 
-# ==================================================
+# ============================================================
 # SAVATNI TOZALASH
-# ==================================================
+# ============================================================
 
 @shop_router.callback_query(
     F.data == "clear_cart"
@@ -857,11 +669,9 @@ async def clear_cart_handler(
     callback: CallbackQuery,
 ):
 
-    cart = get_cart(
+    clear_cart(
         callback.from_user.id
     )
-
-    cart.clear()
 
     await show_cart(callback)
 
@@ -870,9 +680,9 @@ async def clear_cart_handler(
     )
 
 
-# ==================================================
+# ============================================================
 # HECH NIMA QILMASLIK
-# ==================================================
+# ============================================================
 
 @shop_router.callback_query(
     F.data == "nothing"
@@ -882,3 +692,4 @@ async def nothing_handler(
 ):
 
     await callback.answer()
+```
