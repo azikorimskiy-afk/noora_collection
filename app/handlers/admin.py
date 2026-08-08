@@ -1,4 +1,4 @@
-```python
+
 import os
 
 from aiogram import Router, F
@@ -636,4 +636,3 @@ async def product_stock_received(
         f"💰 {data['price']:,} so‘m\n"
         f"📦 Qoldiq: {stock} dona"
     )
-```
