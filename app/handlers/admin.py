@@ -964,49 +964,9 @@ async def admin_customers(
     await callback.answer()
 
 
-# ============================================================
+# ==================================================
 # STATISTIKA
-# ============================================================
-
-async def show_statistics(
-    callback: CallbackQuery,
-):
-
-    stats = get_statistics()
-
-    builder = InlineKeyboardBuilder()
-
-    builder.button(
-        text="🔄 Yangilash",
-        callback_data="admin_stats",
-    )
-
-    builder.button(
-        text="⬅️ Admin panel",
-        callback_data="admin_back",
-    )
-
-    builder.adjust(1)
-
-    text = (
-        "📊 <b>STATISTIKA</b>\n\n"
-        f"📦 Mahsulotlar: "
-        f"<b>{stats['products']}</b>\n"
-        f"👥 Mijozlar: "
-        f"<b>{stats['customers']}</b>\n"
-        f"📋 Buyurtmalar: "
-        f"<b>{stats['orders']}</b>\n"
-        f"✅ Yetkazilgan: "
-        f"<b>{stats['delivered']}</b>\n"
-        f"💰 Tushum: "
-        f"<b>{stats['revenue']:,} so‘m</b>"
-    )
-
-    await callback.message.edit_text(
-        text,
-        reply_markup=builder.as_markup(),
-    )
-
+# ==================================================
 
 @admin_router.callback_query(
     F.data == "admin_stats"
@@ -1016,32 +976,66 @@ async def admin_stats(
 ):
 
     if not is_admin(callback.from_user.id):
-
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
             show_alert=True,
         )
-
         return
 
-    try:
+    # Tugma bosilganda darhol javob beramiz
+    await callback.answer()
 
-        await show_statistics(callback)
+    try:
+        stats = get_statistics()
+
+        products_count = stats.get("products", 0)
+        customers_count = stats.get("customers", 0)
+        orders_count = stats.get("orders", 0)
+        delivered_count = stats.get("delivered", 0)
+        revenue = stats.get("revenue", 0)
+
+        text = (
+            "📊 <b>STATISTIKA</b>\n\n"
+            f"📦 Mahsulotlar: <b>{products_count}</b>\n"
+            f"👥 Mijozlar: <b>{customers_count}</b>\n"
+            f"📋 Buyurtmalar: <b>{orders_count}</b>\n"
+            f"✅ Yetkazilgan: <b>{delivered_count}</b>\n"
+            f"💰 Tushum: <b>{revenue:,} so‘m</b>"
+        )
+
+        builder = InlineKeyboardBuilder()
+
+        builder.button(
+            text="🔄 Yangilash",
+            callback_data="admin_stats",
+        )
+
+        builder.button(
+            text="⬅️ Admin panel",
+            callback_data="admin_back",
+        )
+
+        builder.adjust(1)
+
+        await callback.message.edit_text(
+            text,
+            reply_markup=builder.as_markup(),
+        )
 
     except Exception as e:
 
         print(
-            "❌ STATISTICS ERROR:",
+            "❌ ADMIN STATISTICS ERROR:",
             repr(e),
         )
 
-        await callback.answer(
-            "❌ Statistikani yuklashda xatolik!",
-            show_alert=True,
+        await callback.message.edit_text(
+            "❌ <b>Statistikani yuklashda xatolik!</b>\n\n"
+            "Railway Logs orqali xatoni tekshirish kerak.",
+            reply_markup=InlineKeyboardBuilder()
+                .button(
+                    text="⬅️ Admin panel",
+                    callback_data="admin_back",
+                )
+                .as_markup(),
         )
-
-        return
-
-    await callback.answer(
-        "🔄 Statistika yangilandi!"
-    )
