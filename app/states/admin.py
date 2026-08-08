@@ -8,3 +8,11 @@ class AddProductState(StatesGroup):
     waiting_description = State()
     waiting_image = State()
     waiting_stock = State()
+
+
+class EditProductState(StatesGroup):
+    waiting_name = State()
+    waiting_price = State()
+    waiting_description = State()
+    waiting_image = State()
+    waiting_stock = State()
