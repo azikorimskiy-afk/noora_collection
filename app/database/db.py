@@ -586,3 +586,207 @@ def get_statistics():
 
     finally:
         conn.close()
+
+# ============================================================
+# CARTS — POSTGRESQL
+# ============================================================
+
+def get_cart(telegram_id):
+    conn = get_connection()
+
+    try:
+        cart = conn.execute("""
+            SELECT
+                product_id,
+                quantity
+            FROM cart_items
+            WHERE telegram_id = %s
+            ORDER BY id
+        """, (telegram_id,)).fetchall()
+
+        return {
+            item["product_id"]: item["quantity"]
+            for item in cart
+        }
+
+    finally:
+        conn.close()
+
+
+def add_to_cart(
+    telegram_id,
+    product_id,
+    quantity=1,
+):
+    conn = get_connection()
+
+    try:
+        product = conn.execute("""
+            SELECT stock
+            FROM products
+            WHERE product_id = %s
+        """, (product_id,)).fetchone()
+
+        if not product:
+            raise ValueError("Mahsulot topilmadi.")
+
+        current = conn.execute("""
+            SELECT quantity
+            FROM cart_items
+            WHERE telegram_id = %s
+            AND product_id = %s
+        """, (
+            telegram_id,
+            product_id,
+        )).fetchone()
+
+        current_quantity = (
+            current["quantity"]
+            if current
+            else 0
+        )
+
+        new_quantity = (
+            current_quantity + quantity
+        )
+
+        if new_quantity > product["stock"]:
+            raise ValueError(
+                "Omborda yetarli mahsulot yo‘q."
+            )
+
+        conn.execute("""
+            INSERT INTO cart_items
+            (
+                telegram_id,
+                product_id,
+                quantity
+            )
+            VALUES (%s, %s, %s)
+
+            ON CONFLICT (telegram_id, product_id)
+            DO UPDATE SET
+                quantity = EXCLUDED.quantity
+        """, (
+            telegram_id,
+            product_id,
+            new_quantity,
+        ))
+
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
+
+def set_cart_quantity(
+    telegram_id,
+    product_id,
+    quantity,
+):
+    conn = get_connection()
+
+    try:
+        if quantity <= 0:
+            conn.execute("""
+                DELETE FROM cart_items
+                WHERE telegram_id = %s
+                AND product_id = %s
+            """, (
+                telegram_id,
+                product_id,
+            ))
+
+        else:
+            product = conn.execute("""
+                SELECT stock
+                FROM products
+                WHERE product_id = %s
+            """, (product_id,)).fetchone()
+
+            if not product:
+                raise ValueError(
+                    "Mahsulot topilmadi."
+                )
+
+            if quantity > product["stock"]:
+                raise ValueError(
+                    "Omborda yetarli mahsulot yo‘q."
+                )
+
+            conn.execute("""
+                INSERT INTO cart_items
+                (
+                    telegram_id,
+                    product_id,
+                    quantity
+                )
+                VALUES (%s, %s, %s)
+
+                ON CONFLICT (telegram_id, product_id)
+                DO UPDATE SET
+                    quantity = EXCLUDED.quantity
+            """, (
+                telegram_id,
+                product_id,
+                quantity,
+            ))
+
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
+
+def remove_from_cart(
+    telegram_id,
+    product_id,
+):
+    conn = get_connection()
+
+    try:
+        conn.execute("""
+            DELETE FROM cart_items
+            WHERE telegram_id = %s
+            AND product_id = %s
+        """, (
+            telegram_id,
+            product_id,
+        ))
+
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
+
+def clear_cart(telegram_id):
+    conn = get_connection()
+
+    try:
+        conn.execute("""
+            DELETE FROM cart_items
+            WHERE telegram_id = %s
+        """, (telegram_id,))
+
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
