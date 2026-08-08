@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from app.handlers.shop import shop_router
 from app.handlers.order import order_router
+from app.handlers.admin import admin_router
 
 load_dotenv()
 
@@ -17,6 +18,7 @@ dp = Dispatcher()
 
 dp.include_router(shop_router)
 dp.include_router(order_router)
+dp.include_router(admin_router)
 
 async def main():
     bot = Bot(
