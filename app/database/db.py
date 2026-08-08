@@ -117,6 +117,24 @@ def init_db():
     finally:
         conn.close()
 
+# ====================================================
+# CART ITEMS
+# ====================================================
+
+conn.execute("""
+    CREATE TABLE IF NOT EXISTS cart_items (
+        id SERIAL PRIMARY KEY,
+        telegram_id BIGINT NOT NULL,
+        product_id TEXT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+
+        UNIQUE (telegram_id, product_id),
+
+        FOREIGN KEY (product_id)
+        REFERENCES products(product_id)
+        ON DELETE CASCADE
+    )
+""")
 
 # ============================================================
 # PRODUCTS
