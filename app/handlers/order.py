@@ -1,3 +1,4 @@
+```python
 import os
 
 from aiogram import Router, F, Bot
@@ -15,14 +16,20 @@ from app.states.order import OrderState
 from app.handlers.shop import get_cart
 from app.database.db import get_product
 
+
 order_router = Router()
 
+
+# ==================================================
+# BUYURTMA BOSHLASH
+# ==================================================
 
 @order_router.callback_query(F.data == "checkout")
 async def checkout_handler(
     callback: CallbackQuery,
     state: FSMContext,
 ):
+
     cart = get_cart(callback.from_user.id)
 
     if not cart:
@@ -32,7 +39,9 @@ async def checkout_handler(
         )
         return
 
-    await state.set_state(OrderState.waiting_name)
+    await state.set_state(
+        OrderState.waiting_name
+    )
 
     await callback.message.answer(
         "👤 <b>Buyurtma rasmiylashtirish</b>\n\n"
@@ -42,11 +51,24 @@ async def checkout_handler(
     await callback.answer()
 
 
-@order_router.message(OrderState.waiting_name)
+# ==================================================
+# ISM
+# ==================================================
+
+@order_router.message(
+    OrderState.waiting_name
+)
 async def get_name(
     message: Message,
     state: FSMContext,
 ):
+
+    if not message.text:
+        await message.answer(
+            "❗ Iltimos, ismingizni kiriting."
+        )
+        return
+
     name = message.text.strip()
 
     if len(name) < 2:
@@ -55,7 +77,9 @@ async def get_name(
         )
         return
 
-    await state.update_data(name=name)
+    await state.update_data(
+        name=name
+    )
 
     phone_keyboard = ReplyKeyboardMarkup(
         keyboard=[
@@ -70,13 +94,19 @@ async def get_name(
         one_time_keyboard=True,
     )
 
-    await state.set_state(OrderState.waiting_phone)
+    await state.set_state(
+        OrderState.waiting_phone
+    )
 
     await message.answer(
         "📞 Telefon raqamingizni yuboring:",
         reply_markup=phone_keyboard,
     )
 
+
+# ==================================================
+# TELEFON
+# ==================================================
 
 @order_router.message(
     OrderState.waiting_phone,
@@ -86,11 +116,16 @@ async def get_phone(
     message: Message,
     state: FSMContext,
 ):
+
     phone = message.contact.phone_number
 
-    await state.update_data(phone=phone)
+    await state.update_data(
+        phone=phone
+    )
 
-    await state.set_state(OrderState.waiting_address)
+    await state.set_state(
+        OrderState.waiting_address
+    )
 
     await message.answer(
         "📍 Yetkazib berish manzilingizni yozing:",
@@ -98,8 +133,13 @@ async def get_phone(
     )
 
 
-@order_router.message(OrderState.waiting_phone)
-async def phone_error(message: Message):
+@order_router.message(
+    OrderState.waiting_phone
+)
+async def phone_error(
+    message: Message,
+):
+
     await message.answer(
         "❗ Iltimos, pastdagi "
         "📞 Telefon raqamni yuborish "
@@ -107,11 +147,24 @@ async def phone_error(message: Message):
     )
 
 
-@order_router.message(OrderState.waiting_address)
+# ==================================================
+# MANZIL
+# ==================================================
+
+@order_router.message(
+    OrderState.waiting_address
+)
 async def get_address(
     message: Message,
     state: FSMContext,
 ):
+
+    if not message.text:
+        await message.answer(
+            "❗ Manzilni yozing."
+        )
+        return
+
     address = message.text.strip()
 
     if len(address) < 5:
@@ -120,24 +173,45 @@ async def get_address(
         )
         return
 
-    await state.update_data(address=address)
+    await state.update_data(
+        address=address
+    )
 
     data = await state.get_data()
-    cart = get_cart(message.from_user.id)
+
+    cart = get_cart(
+        message.from_user.id
+    )
 
     if not cart:
-        await message.answer("🛒 Savatchangiz bo‘sh.")
+
+        await message.answer(
+            "🛒 Savatchangiz bo‘sh."
+        )
+
         await state.clear()
+
         return
 
     total = 0
 
-    order_text = "📦 <b>BUYURTMA</b>\n\n"
+    order_text = (
+        "📦 <b>BUYURTMA</b>\n\n"
+    )
 
     for product_id, quantity in cart.items():
-        product = PRODUCTS[product_id]
 
-        subtotal = product["price"] * quantity
+        product = get_product(
+            product_id
+        )
+
+        if not product:
+            continue
+
+        subtotal = (
+            product["price"] * quantity
+        )
+
         total += subtotal
 
         order_text += (
@@ -172,45 +246,84 @@ async def get_address(
     )
 
 
-@order_router.callback_query(F.data == "confirm_order")
+# ==================================================
+# BUYURTMANI TASDIQLASH
+# ==================================================
+
+@order_router.callback_query(
+    F.data == "confirm_order"
+)
 async def confirm_order(
     callback: CallbackQuery,
     state: FSMContext,
     bot: Bot,
 ):
+
     data = await state.get_data()
 
-    cart = get_cart(callback.from_user.id)
+    cart = get_cart(
+        callback.from_user.id
+    )
 
     if not cart:
+
         await callback.answer(
             "🛒 Savatchangiz bo‘sh!",
             show_alert=True,
         )
+
         return
 
-    admin_id = os.getenv("ADMIN_ID")
+    admin_id = os.getenv(
+        "ADMIN_ID"
+    )
 
-    print("========== ADMIN TEST ==========")
-    print("ADMIN_ID:", admin_id)
-    print("USER ID:", callback.from_user.id)
-    print("================================")
+    print(
+        "========== ADMIN TEST =========="
+    )
+
+    print(
+        "ADMIN_ID:",
+        admin_id
+    )
+
+    print(
+        "USER ID:",
+        callback.from_user.id
+    )
+
+    print(
+        "================================"
+    )
 
     if not admin_id:
+
         await callback.answer(
             "❌ ADMIN_ID sozlanmagan!",
             show_alert=True,
         )
+
         return
 
     total = 0
 
-    order_text = "🔔 <b>YANGI BUYURTMA!</b>\n\n"
+    order_text = (
+        "🔔 <b>YANGI BUYURTMA!</b>\n\n"
+    )
 
     for product_id, quantity in cart.items():
-        product = PRODUCTS[product_id]
 
-        subtotal = product["price"] * quantity
+        product = get_product(
+            product_id
+        )
+
+        if not product:
+            continue
+
+        subtotal = (
+            product["price"] * quantity
+        )
+
         total += subtotal
 
         order_text += (
@@ -223,7 +336,8 @@ async def confirm_order(
         f"👤 <b>Ism:</b> {data['name']}\n"
         f"📞 <b>Telefon:</b> {data['phone']}\n"
         f"📍 <b>Manzil:</b> {data['address']}\n\n"
-        f"🆔 <b>Telegram ID:</b> {callback.from_user.id}"
+        f"🆔 <b>Telegram ID:</b> "
+        f"{callback.from_user.id}"
     )
 
     builder = InlineKeyboardBuilder()
@@ -251,7 +365,10 @@ async def confirm_order(
     builder.adjust(1)
 
     try:
-        print("📤 Adminga xabar yuborilmoqda...")
+
+        print(
+            "📤 Adminga xabar yuborilmoqda..."
+        )
 
         await bot.send_message(
             chat_id=int(admin_id),
@@ -259,15 +376,22 @@ async def confirm_order(
             reply_markup=builder.as_markup(),
         )
 
-        print("✅ ADAMINGA XABAR YUBORILDI!")
+        print(
+            "✅ ADMIN GA XABAR YUBORILDI!"
+        )
 
     except Exception as e:
-        print("❌ ADMIN XABAR XATOSI:", repr(e))
+
+        print(
+            "❌ ADMIN XABAR XATOSI:",
+            repr(e)
+        )
 
         await callback.answer(
             "❌ Adminga yuborishda xatolik!",
             show_alert=True,
         )
+
         return
 
     await callback.message.edit_text(
@@ -276,60 +400,118 @@ async def confirm_order(
     )
 
     cart.clear()
+
     await state.clear()
 
     await callback.answer()
 
 
-@order_router.callback_query(F.data == "cancel_order")
+# ==================================================
+# BUYURTMANI BEKOR QILISH
+# ==================================================
+
+@order_router.callback_query(
+    F.data == "cancel_order"
+)
 async def cancel_order(
     callback: CallbackQuery,
     state: FSMContext,
 ):
+
     await state.clear()
 
     await callback.message.edit_text(
-        "❌ Buyurtma bekor qilindi."
+        "❌ <b>Buyurtma bekor qilindi.</b>\n\n"
+        "🛍 Istasangiz katalogdan yana mahsulot tanlashingiz mumkin."
     )
 
     await callback.answer()
 
 
-@order_router.callback_query(F.data == "admin_accept")
-async def admin_accept(callback: CallbackQuery):
-    await callback.answer("✅ Buyurtma qabul qilindi!")
+# ==================================================
+# ADMIN — QABUL QILISH
+# ==================================================
+
+@order_router.callback_query(
+    F.data == "admin_accept"
+)
+async def admin_accept(
+    callback: CallbackQuery,
+):
+
+    await callback.answer(
+        "✅ Buyurtma qabul qilindi!"
+    )
 
     await callback.message.edit_text(
         callback.message.text
-        + "\n\n🟢 <b>STATUS: QABUL QILINDI</b>"
+        + "\n\n"
+        "🟢 <b>STATUS: QABUL QILINDI</b>"
     )
 
 
-@order_router.callback_query(F.data == "admin_delivery")
-async def admin_delivery(callback: CallbackQuery):
-    await callback.answer("🚚 Yetkazilmoqda!")
+# ==================================================
+# ADMIN — YETKAZILMOQDA
+# ==================================================
+
+@order_router.callback_query(
+    F.data == "admin_delivery"
+)
+async def admin_delivery(
+    callback: CallbackQuery,
+):
+
+    await callback.answer(
+        "🚚 Yetkazilmoqda!"
+    )
 
     await callback.message.edit_text(
         callback.message.text
-        + "\n\n🚚 <b>STATUS: YETKAZILMOQDA</b>"
+        + "\n\n"
+        "🚚 <b>STATUS: YETKAZILMOQDA</b>"
     )
 
 
-@order_router.callback_query(F.data == "admin_delivered")
-async def admin_delivered(callback: CallbackQuery):
-    await callback.answer("✅ Yetkazildi!")
+# ==================================================
+# ADMIN — YETKAZILDI
+# ==================================================
+
+@order_router.callback_query(
+    F.data == "admin_delivered"
+)
+async def admin_delivered(
+    callback: CallbackQuery,
+):
+
+    await callback.answer(
+        "✅ Yetkazildi!"
+    )
 
     await callback.message.edit_text(
         callback.message.text
-        + "\n\n✅ <b>STATUS: YETKAZILDI</b>"
+        + "\n\n"
+        "✅ <b>STATUS: YETKAZILDI</b>"
     )
 
 
-@order_router.callback_query(F.data == "admin_cancel")
-async def admin_cancel(callback: CallbackQuery):
-    await callback.answer("❌ Buyurtma bekor qilindi!")
+# ==================================================
+# ADMIN — BEKOR QILISH
+# ==================================================
+
+@order_router.callback_query(
+    F.data == "admin_cancel"
+)
+async def admin_cancel(
+    callback: CallbackQuery,
+):
+
+    await callback.answer(
+        "❌ Buyurtma bekor qilindi!"
+    )
 
     await callback.message.edit_text(
         callback.message.text
-        + "\n\n🔴 <b>STATUS: BEKOR QILINDI</b>"
+        + "\n\n"
+        "🔴 <b>STATUS: BEKOR QILINDI</b>"
     )
+```
