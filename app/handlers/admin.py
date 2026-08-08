@@ -25,9 +25,9 @@ from app.database.db import (
 admin_router = Router()
 
 
-# ==================================================
+# ============================================================
 # ADMIN TEKSHIRISH
-# ==================================================
+# ============================================================
 
 def is_admin(user_id: int) -> bool:
 
@@ -38,13 +38,13 @@ def is_admin(user_id: int) -> bool:
 
     try:
         return user_id == int(admin_id)
-    except ValueError:
+    except (ValueError, TypeError):
         return False
 
 
-# ==================================================
+# ============================================================
 # ADMIN PANEL KEYBOARD
-# ==================================================
+# ============================================================
 
 def admin_keyboard():
 
@@ -75,9 +75,9 @@ def admin_keyboard():
     return builder.as_markup()
 
 
-# ==================================================
+# ============================================================
 # ADMIN PANEL
-# ==================================================
+# ============================================================
 
 @admin_router.message(Command("admin"))
 async def admin_panel(message: Message):
@@ -97,13 +97,11 @@ async def admin_panel(message: Message):
     )
 
 
-# ==================================================
+# ============================================================
 # ADMIN ORQAGA
-# ==================================================
+# ============================================================
 
-@admin_router.callback_query(
-    F.data == "admin_back"
-)
+@admin_router.callback_query(F.data == "admin_back")
 async def admin_back(callback: CallbackQuery):
 
     if not is_admin(callback.from_user.id):
@@ -124,16 +122,12 @@ async def admin_back(callback: CallbackQuery):
     await callback.answer()
 
 
-# ==================================================
+# ============================================================
 # MAHSULOTLAR
-# ==================================================
+# ============================================================
 
-@admin_router.callback_query(
-    F.data == "admin_products"
-)
-async def admin_products(
-    callback: CallbackQuery,
-):
+@admin_router.callback_query(F.data == "admin_products")
+async def admin_products(callback: CallbackQuery):
 
     if not is_admin(callback.from_user.id):
 
@@ -191,16 +185,14 @@ async def admin_products(
     await callback.answer()
 
 
-# ==================================================
+# ============================================================
 # MAHSULOT DETALI
-# ==================================================
+# ============================================================
 
 @admin_router.callback_query(
     F.data.startswith("admin_product:")
 )
-async def admin_product(
-    callback: CallbackQuery,
-):
+async def admin_product(callback: CallbackQuery):
 
     if not is_admin(callback.from_user.id):
 
@@ -211,9 +203,7 @@ async def admin_product(
 
         return
 
-    product_id = callback.data.split(
-        ":", 1
-    )[1]
+    product_id = callback.data.split(":", 1)[1]
 
     product = get_product(product_id)
 
@@ -227,13 +217,6 @@ async def admin_product(
         return
 
     builder = InlineKeyboardBuilder()
-
-    builder.button(
-        text="✏️ Tahrirlash",
-        callback_data=(
-            f"edit_product:{product_id}"
-        ),
-    )
 
     builder.button(
         text="🗑 O‘chirish",
@@ -251,20 +234,18 @@ async def admin_product(
 
     await callback.message.edit_text(
         f"📦 <b>{product['name']}</b>\n\n"
-        f"📝 {product['description']}\n\n"
-        f"💰 Narx: "
-        f"{product['price']:,} so‘m\n"
-        f"📦 Qoldiq: "
-        f"{product['stock']} dona",
+        f"📝 {product['description'] or '-'}\n\n"
+        f"💰 Narx: <b>{product['price']:,} so‘m</b>\n"
+        f"📦 Qoldiq: <b>{product['stock']} dona</b>",
         reply_markup=builder.as_markup(),
     )
 
     await callback.answer()
 
 
-# ==================================================
+# ============================================================
 # MAHSULOT QO‘SHISH
-# ==================================================
+# ============================================================
 
 @admin_router.callback_query(
     F.data == "admin_add_product"
@@ -299,9 +280,9 @@ async def admin_add_product(
     await callback.answer()
 
 
-# ==================================================
-# 1/6 ID
-# ==================================================
+# ============================================================
+# 1 — PRODUCT ID
+# ============================================================
 
 @admin_router.message(
     AddProductState.waiting_product_id
@@ -352,9 +333,9 @@ async def product_id_received(
     )
 
 
-# ==================================================
-# 2/6 NOM
-# ==================================================
+# ============================================================
+# 2 — NAME
+# ============================================================
 
 @admin_router.message(
     AddProductState.waiting_name
@@ -398,9 +379,9 @@ async def product_name_received(
     )
 
 
-# ==================================================
-# 3/6 NARX
-# ==================================================
+# ============================================================
+# 3 — PRICE
+# ============================================================
 
 @admin_router.message(
     AddProductState.waiting_price
@@ -427,8 +408,7 @@ async def product_price_received(
     except ValueError:
 
         await message.answer(
-            "❗ Narxni faqat raqam bilan kiriting.\n\n"
-            "Masalan: <code>75000</code>"
+            "❗ Narxni faqat raqam bilan kiriting."
         )
 
         return
@@ -455,9 +435,9 @@ async def product_price_received(
     )
 
 
-# ==================================================
-# 4/6 TAVSIF
-# ==================================================
+# ============================================================
+# 4 — DESCRIPTION
+# ============================================================
 
 @admin_router.message(
     AddProductState.waiting_description
@@ -487,13 +467,13 @@ async def product_description_received(
 
     await message.answer(
         "🖼 <b>5/6</b>\n\n"
-        "Endi mahsulot rasmini yuboring."
+        "Mahsulot rasmini yuboring."
     )
 
 
-# ==================================================
-# 5/6 RASM
-# ==================================================
+# ============================================================
+# 5 — IMAGE
+# ============================================================
 
 @admin_router.message(
     AddProductState.waiting_image,
@@ -525,18 +505,16 @@ async def product_image_received(
 @admin_router.message(
     AddProductState.waiting_image
 )
-async def product_image_error(
-    message: Message,
-):
+async def product_image_error(message: Message):
 
     await message.answer(
         "❗ Iltimos, mahsulot rasmini yuboring."
     )
 
 
-# ==================================================
-# 6/6 QOLDIQ
-# ==================================================
+# ============================================================
+# 6 — STOCK
+# ============================================================
 
 @admin_router.message(
     AddProductState.waiting_stock
@@ -585,7 +563,7 @@ async def product_stock_received(
             name=data["name"],
             price=data["price"],
             description=data["description"],
-            image=data["image"],
+            image=data.get("image"),
             stock=stock,
         )
 
@@ -614,9 +592,9 @@ async def product_stock_received(
     )
 
 
-# ==================================================
+# ============================================================
 # MAHSULOTNI O‘CHIRISH
-# ==================================================
+# ============================================================
 
 @admin_router.callback_query(
     F.data.startswith("delete_product:")
@@ -634,9 +612,7 @@ async def delete_product_handler(
 
         return
 
-    product_id = callback.data.split(
-        ":", 1
-    )[1]
+    product_id = callback.data.split(":", 1)[1]
 
     product = get_product(product_id)
 
@@ -661,19 +637,14 @@ async def delete_product_handler(
         )
 
         await callback.answer(
-            "❌ Mahsulotni o‘chirishda xatolik!",
+            "❌ O‘chirishda xatolik!",
             show_alert=True,
         )
 
         return
 
-    await callback.answer(
-        "🗑 Mahsulot o‘chirildi!"
-    )
-
     await callback.message.edit_text(
-        "🗑 <b>Mahsulot o‘chirildi.</b>\n\n"
-        "📦 Mahsulotlar bo‘limiga qaytishingiz mumkin.",
+        "🗑 <b>Mahsulot o‘chirildi.</b>",
         reply_markup=InlineKeyboardBuilder()
         .button(
             text="⬅️ Mahsulotlar",
@@ -682,10 +653,14 @@ async def delete_product_handler(
         .as_markup(),
     )
 
+    await callback.answer(
+        "🗑 Mahsulot o‘chirildi!"
+    )
 
-# ==================================================
+
+# ============================================================
 # BUYURTMALAR
-# ==================================================
+# ============================================================
 
 @admin_router.callback_query(
     F.data == "admin_orders"
@@ -728,18 +703,13 @@ async def admin_orders(
 
         status = order["status"]
 
-        status_emojis = {
+        emoji = {
             "new": "🆕",
             "accepted": "🟢",
             "delivery": "🚚",
             "delivered": "✅",
             "cancelled": "🔴",
-        }
-
-        emoji = status_emojis.get(
-            status,
-            "📦",
-        )
+        }.get(status, "📦")
 
         builder.button(
             text=(
@@ -767,9 +737,9 @@ async def admin_orders(
     await callback.answer()
 
 
-# ==================================================
+# ============================================================
 # BUYURTMA DETALI
-# ==================================================
+# ============================================================
 
 @admin_router.callback_query(
     F.data.startswith("admin_order:")
@@ -819,12 +789,9 @@ async def admin_order_detail(
     text += (
         f"💵 <b>Jami:</b> "
         f"{order['total']:,} so‘m\n\n"
-        f"👤 <b>Ism:</b> "
-        f"{order['name']}\n"
-        f"📞 <b>Telefon:</b> "
-        f"{order['phone']}\n"
-        f"📍 <b>Manzil:</b> "
-        f"{order['address']}\n"
+        f"👤 <b>Ism:</b> {order['name']}\n"
+        f"📞 <b>Telefon:</b> {order['phone']}\n"
+        f"📍 <b>Manzil:</b> {order['address']}\n"
         f"🆔 <b>Telegram ID:</b> "
         f"{order['telegram_id']}\n\n"
         f"📊 <b>Status:</b> "
@@ -876,9 +843,9 @@ async def admin_order_detail(
     await callback.answer()
 
 
-# ==================================================
-# BUYURTMA STATUSI
-# ==================================================
+# ============================================================
+# STATUS O‘ZGARTIRISH
+# ============================================================
 
 @admin_router.callback_query(
     F.data.startswith("order_status:")
@@ -910,12 +877,12 @@ async def order_status_handler(
     except Exception as e:
 
         print(
-            "❌ ORDER STATUS ERROR:",
+            "❌ STATUS ERROR:",
             repr(e),
         )
 
         await callback.answer(
-            "❌ Statusni yangilashda xatolik!",
+            "❌ Statusni o‘zgartirishda xatolik!",
             show_alert=True,
         )
 
@@ -932,84 +899,12 @@ async def order_status_handler(
         f"Status: {status_names.get(status, status)}"
     )
 
-    order = get_order(order_id)
-
-    if not order:
-        return
-
-    items = get_order_items(order_id)
-
-    text = (
-        f"📦 <b>BUYURTMA #{order['id']}</b>\n\n"
-    )
-
-    for item in items:
-
-        text += (
-            f"• {item['product_name']} × "
-            f"{item['quantity']}\n"
-            f"  💰 {item['subtotal']:,} so‘m\n\n"
-        )
-
-    text += (
-        f"💵 <b>Jami:</b> "
-        f"{order['total']:,} so‘m\n\n"
-        f"👤 <b>Ism:</b> "
-        f"{order['name']}\n"
-        f"📞 <b>Telefon:</b> "
-        f"{order['phone']}\n"
-        f"📍 <b>Manzil:</b> "
-        f"{order['address']}\n\n"
-        f"📊 <b>Status:</b> "
-        f"{status_names.get(status, status)}"
-    )
-
-    builder = InlineKeyboardBuilder()
-
-    builder.button(
-        text="🟢 Qabul qilish",
-        callback_data=(
-            f"order_status:accepted:{order_id}"
-        ),
-    )
-
-    builder.button(
-        text="🚚 Yetkazilmoqda",
-        callback_data=(
-            f"order_status:delivery:{order_id}"
-        ),
-    )
-
-    builder.button(
-        text="✅ Yetkazildi",
-        callback_data=(
-            f"order_status:delivered:{order_id}"
-        ),
-    )
-
-    builder.button(
-        text="❌ Bekor qilish",
-        callback_data=(
-            f"order_status:cancelled:{order_id}"
-        ),
-    )
-
-    builder.button(
-        text="⬅️ Buyurtmalar",
-        callback_data="admin_orders",
-    )
-
-    builder.adjust(1)
-
-    await callback.message.edit_text(
-        text,
-        reply_markup=builder.as_markup(),
-    )
+    await admin_order_detail(callback)
 
 
-# ==================================================
+# ============================================================
 # MIJOZLAR
-# ==================================================
+# ============================================================
 
 @admin_router.callback_query(
     F.data == "admin_customers"
@@ -1055,9 +950,9 @@ async def admin_customers(
     for customer in customers[:20]:
 
         text += (
-            f"👤 <b>{customer['name']}</b>\n"
-            f"📞 {customer['phone']}\n"
-            f"📍 {customer['address']}\n"
+            f"👤 <b>{customer['name'] or '-'}</b>\n"
+            f"📞 {customer['phone'] or '-'}\n"
+            f"📍 {customer['address'] or '-'}\n"
             f"🆔 {customer['telegram_id']}\n\n"
         )
 
@@ -1069,17 +964,21 @@ async def admin_customers(
     await callback.answer()
 
 
-# ==================================================
+# ============================================================
 # STATISTIKA
-# ==================================================
+# ============================================================
 
-def statistics_keyboard():
+async def show_statistics(
+    callback: CallbackQuery,
+):
+
+    stats = get_statistics()
 
     builder = InlineKeyboardBuilder()
 
     builder.button(
         text="🔄 Yangilash",
-        callback_data="admin_stats_refresh",
+        callback_data="admin_stats",
     )
 
     builder.button(
@@ -1089,12 +988,7 @@ def statistics_keyboard():
 
     builder.adjust(1)
 
-    return builder.as_markup()
-
-
-def statistics_text(stats):
-
-    return (
+    text = (
         "📊 <b>STATISTIKA</b>\n\n"
         f"📦 Mahsulotlar: "
         f"<b>{stats['products']}</b>\n"
@@ -1108,10 +1002,11 @@ def statistics_text(stats):
         f"<b>{stats['revenue']:,} so‘m</b>"
     )
 
+    await callback.message.edit_text(
+        text,
+        reply_markup=builder.as_markup(),
+    )
 
-# ==================================================
-# STATISTIKA OCHISH
-# ==================================================
 
 @admin_router.callback_query(
     F.data == "admin_stats"
@@ -1129,44 +1024,23 @@ async def admin_stats(
 
         return
 
-    stats = get_statistics()
+    try:
 
-    await callback.message.edit_text(
-        statistics_text(stats),
-        reply_markup=statistics_keyboard(),
-    )
+        await show_statistics(callback)
 
-    await callback.answer()
+    except Exception as e:
 
-
-# ==================================================
-# STATISTIKA YANGILASH
-# ==================================================
-
-@admin_router.callback_query(
-    F.data == "admin_stats_refresh"
-)
-async def admin_stats_refresh(
-    callback: CallbackQuery,
-):
-
-    if not is_admin(callback.from_user.id):
+        print(
+            "❌ STATISTICS ERROR:",
+            repr(e),
+        )
 
         await callback.answer(
-            "⛔ Ruxsat yo‘q!",
+            "❌ Statistikani yuklashda xatolik!",
             show_alert=True,
         )
 
         return
-
-    # MUHIM:
-    # Har bosilganda DB dan qaytadan olinadi.
-    stats = get_statistics()
-
-    await callback.message.edit_text(
-        statistics_text(stats),
-        reply_markup=statistics_keyboard(),
-    )
 
     await callback.answer(
         "🔄 Statistika yangilandi!"
