@@ -1,4 +1,3 @@
-
 import os
 import psycopg
 from psycopg.rows import dict_row
@@ -13,7 +12,8 @@ def get_connection():
 
     if not database_url:
         raise RuntimeError(
-            "❌ DATABASE_URL Railway Variables'da topilmadi!"
+            "DATABASE_URL topilmadi! "
+            "Railway Variables ichida DATABASE_URL mavjudligini tekshiring."
         )
 
     return psycopg.connect(
@@ -27,17 +27,18 @@ def get_connection():
 # ==================================================
 
 def init_db():
+
     conn = get_connection()
 
-    with conn.cursor() as cursor:
+    try:
 
-        # ------------------------------
+        # ==================================================
         # PRODUCTS
-        # ------------------------------
+        # ==================================================
 
-        cursor.execute("""
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS products (
-                id BIGSERIAL PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 product_id TEXT UNIQUE NOT NULL,
                 name TEXT NOT NULL,
                 price BIGINT NOT NULL,
@@ -47,13 +48,13 @@ def init_db():
             )
         """)
 
-        # ------------------------------
+        # ==================================================
         # CUSTOMERS
-        # ------------------------------
+        # ==================================================
 
-        cursor.execute("""
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS customers (
-                id BIGSERIAL PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 telegram_id BIGINT UNIQUE NOT NULL,
                 name TEXT,
                 phone TEXT,
@@ -62,13 +63,13 @@ def init_db():
             )
         """)
 
-        # ------------------------------
+        # ==================================================
         # ORDERS
-        # ------------------------------
+        # ==================================================
 
-        cursor.execute("""
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS orders (
-                id BIGSERIAL PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 telegram_id BIGINT NOT NULL,
                 name TEXT NOT NULL,
                 phone TEXT NOT NULL,
@@ -79,14 +80,14 @@ def init_db():
             )
         """)
 
-        # ------------------------------
+        # ==================================================
         # ORDER ITEMS
-        # ------------------------------
+        # ==================================================
 
-        cursor.execute("""
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS order_items (
-                id BIGSERIAL PRIMARY KEY,
-                order_id BIGINT NOT NULL,
+                id SERIAL PRIMARY KEY,
+                order_id INTEGER NOT NULL,
                 product_id TEXT NOT NULL,
                 product_name TEXT NOT NULL,
                 price BIGINT NOT NULL,
@@ -99,34 +100,24 @@ def init_db():
             )
         """)
 
-        # ------------------------------
-        # CARTS
-        # ------------------------------
+        conn.commit()
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS carts (
-                id BIGSERIAL PRIMARY KEY,
-                telegram_id BIGINT UNIQUE NOT NULL
-            )
-        """)
+        print("✅ PostgreSQL database tayyor!")
 
-        # ------------------------------
-        # CART ITEMS
-        # ------------------------------
+    except Exception as e:
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS cart_items (
-                id BIGSERIAL PRIMARY KEY,
-                telegram_id BIGINT NOT NULL,
-                product_id TEXT NOT NULL,
-                quantity INTEGER NOT NULL DEFAULT 1,
+        conn.rollback()
 
-                UNIQUE (telegram_id, product_id)
-            )
-        """)
+        print(
+            "❌ DATABASE INIT ERROR:",
+            repr(e)
+        )
 
-    conn.commit()
-    conn.close()
+        raise
+
+    finally:
+
+        conn.close()
 
 
 # ==================================================
@@ -134,38 +125,46 @@ def init_db():
 # ==================================================
 
 def get_products():
+
     conn = get_connection()
 
-    with conn.cursor() as cursor:
-        cursor.execute("""
+    try:
+
+        products = conn.execute("""
             SELECT *
             FROM products
             ORDER BY id
-        """)
+        """).fetchall()
 
-        products = cursor.fetchall()
+        return products
 
-    conn.close()
+    finally:
 
-    return products
+        conn.close()
 
+
+# ==================================================
 
 def get_product(product_id):
+
     conn = get_connection()
 
-    with conn.cursor() as cursor:
-        cursor.execute("""
+    try:
+
+        product = conn.execute("""
             SELECT *
             FROM products
             WHERE product_id = %s
-        """, (product_id,))
+        """, (product_id,)).fetchone()
 
-        product = cursor.fetchone()
+        return product
 
-    conn.close()
+    finally:
 
-    return product
+        conn.close()
 
+
+# ==================================================
 
 def add_product(
     product_id,
@@ -175,39 +174,44 @@ def add_product(
     image,
     stock,
 ):
+
     conn = get_connection()
 
     try:
-        with conn.cursor() as cursor:
-            cursor.execute("""
-                INSERT INTO products
-                (
-                    product_id,
-                    name,
-                    price,
-                    description,
-                    image,
-                    stock
-                )
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (
+
+        conn.execute("""
+            INSERT INTO products
+            (
                 product_id,
                 name,
                 price,
                 description,
                 image,
-                stock,
-            ))
+                stock
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            product_id,
+            name,
+            price,
+            description,
+            image,
+            stock,
+        ))
 
         conn.commit()
 
     except Exception:
+
         conn.rollback()
         raise
 
     finally:
+
         conn.close()
 
+
+# ==================================================
 
 def update_product(
     product_id,
@@ -217,55 +221,63 @@ def update_product(
     image,
     stock,
 ):
+
     conn = get_connection()
 
     try:
-        with conn.cursor() as cursor:
-            cursor.execute("""
-                UPDATE products
-                SET
-                    name = %s,
-                    price = %s,
-                    description = %s,
-                    image = %s,
-                    stock = %s
-                WHERE product_id = %s
-            """, (
-                name,
-                price,
-                description,
-                image,
-                stock,
-                product_id,
-            ))
+
+        conn.execute("""
+            UPDATE products
+            SET
+                name = %s,
+                price = %s,
+                description = %s,
+                image = %s,
+                stock = %s
+            WHERE product_id = %s
+        """, (
+            name,
+            price,
+            description,
+            image,
+            stock,
+            product_id,
+        ))
 
         conn.commit()
 
     except Exception:
+
         conn.rollback()
         raise
 
     finally:
+
         conn.close()
 
 
+# ==================================================
+
 def delete_product(product_id):
+
     conn = get_connection()
 
     try:
-        with conn.cursor() as cursor:
-            cursor.execute("""
-                DELETE FROM products
-                WHERE product_id = %s
-            """, (product_id,))
+
+        conn.execute("""
+            DELETE FROM products
+            WHERE product_id = %s
+        """, (product_id,))
 
         conn.commit()
 
     except Exception:
+
         conn.rollback()
         raise
 
     finally:
+
         conn.close()
 
 
@@ -279,39 +291,42 @@ def save_customer(
     phone,
     address,
 ):
+
     conn = get_connection()
 
     try:
-        with conn.cursor() as cursor:
-            cursor.execute("""
-                INSERT INTO customers
-                (
-                    telegram_id,
-                    name,
-                    phone,
-                    address
-                )
-                VALUES (%s, %s, %s, %s)
 
-                ON CONFLICT (telegram_id)
-                DO UPDATE SET
-                    name = EXCLUDED.name,
-                    phone = EXCLUDED.phone,
-                    address = EXCLUDED.address
-            """, (
+        conn.execute("""
+            INSERT INTO customers
+            (
                 telegram_id,
                 name,
                 phone,
-                address,
-            ))
+                address
+            )
+            VALUES (%s, %s, %s, %s)
+
+            ON CONFLICT (telegram_id)
+            DO UPDATE SET
+                name = EXCLUDED.name,
+                phone = EXCLUDED.phone,
+                address = EXCLUDED.address
+        """, (
+            telegram_id,
+            name,
+            phone,
+            address,
+        ))
 
         conn.commit()
 
     except Exception:
+
         conn.rollback()
         raise
 
     finally:
+
         conn.close()
 
 
@@ -327,119 +342,95 @@ def create_order(
     total,
     items,
 ):
+
     conn = get_connection()
 
     try:
-        with conn.cursor() as cursor:
 
-            # ------------------------------
-            # CUSTOMER
-            # ------------------------------
+        # ==================================================
+        # ORDER
+        # ==================================================
 
-            cursor.execute("""
-                INSERT INTO customers
-                (
-                    telegram_id,
-                    name,
-                    phone,
-                    address
-                )
-                VALUES (%s, %s, %s, %s)
-
-                ON CONFLICT (telegram_id)
-                DO UPDATE SET
-                    name = EXCLUDED.name,
-                    phone = EXCLUDED.phone,
-                    address = EXCLUDED.address
-            """, (
-                telegram_id,
-                name,
-                phone,
-                address,
-            ))
-
-            # ------------------------------
-            # ORDER
-            # ------------------------------
-
-            cursor.execute("""
-                INSERT INTO orders
-                (
-                    telegram_id,
-                    name,
-                    phone,
-                    address,
-                    total,
-                    status
-                )
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (
+        cursor = conn.execute("""
+            INSERT INTO orders
+            (
                 telegram_id,
                 name,
                 phone,
                 address,
                 total,
-                "new",
-            ))
+                status
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (
+            telegram_id,
+            name,
+            phone,
+            address,
+            total,
+            "new",
+        ))
 
-            order_id = cursor.fetchone()["id"]
+        order_id = cursor.fetchone()["id"]
 
-            # ------------------------------
-            # ORDER ITEMS + STOCK
-            # ------------------------------
+        # ==================================================
+        # ORDER ITEMS
+        # ==================================================
 
-            for item in items:
+        for item in items:
 
-                cursor.execute("""
-                    UPDATE products
-                    SET stock = stock - %s
-                    WHERE product_id = %s
-                    AND stock >= %s
-                    RETURNING product_id
-                """, (
-                    item["quantity"],
-                    item["product_id"],
-                    item["quantity"],
-                ))
+            # Avval stockni tekshirib kamaytiramiz.
+            result = conn.execute("""
+                UPDATE products
+                SET stock = stock - %s
+                WHERE product_id = %s
+                AND stock >= %s
+                RETURNING stock
+            """, (
+                item["quantity"],
+                item["product_id"],
+                item["quantity"],
+            )).fetchone()
 
-                updated = cursor.fetchone()
+            if not result:
 
-                if not updated:
-                    raise ValueError(
-                        f"Mahsulot qoldig'i yetarli emas: "
-                        f"{item['product_id']}"
-                    )
+                raise ValueError(
+                    f"Mahsulot qoldig'i yetarli emas: "
+                    f"{item['product_id']}"
+                )
 
-                cursor.execute("""
-                    INSERT INTO order_items
-                    (
-                        order_id,
-                        product_id,
-                        product_name,
-                        price,
-                        quantity,
-                        subtotal
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (
+            conn.execute("""
+                INSERT INTO order_items
+                (
                     order_id,
-                    item["product_id"],
-                    item["name"],
-                    item["price"],
-                    item["quantity"],
-                    item["subtotal"],
-                ))
+                    product_id,
+                    product_name,
+                    price,
+                    quantity,
+                    subtotal
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                order_id,
+                item["product_id"],
+                item["name"],
+                item["price"],
+                item["quantity"],
+                item["subtotal"],
+            ))
 
         conn.commit()
 
         return order_id
 
     except Exception:
+
         conn.rollback()
         raise
 
     finally:
+
         conn.close()
 
 
@@ -448,20 +439,22 @@ def create_order(
 # ==================================================
 
 def get_order(order_id):
+
     conn = get_connection()
 
-    with conn.cursor() as cursor:
-        cursor.execute("""
+    try:
+
+        order = conn.execute("""
             SELECT *
             FROM orders
             WHERE id = %s
-        """, (order_id,))
+        """, (order_id,)).fetchone()
 
-        order = cursor.fetchone()
+        return order
 
-    conn.close()
+    finally:
 
-    return order
+        conn.close()
 
 
 # ==================================================
@@ -469,21 +462,23 @@ def get_order(order_id):
 # ==================================================
 
 def get_order_items(order_id):
+
     conn = get_connection()
 
-    with conn.cursor() as cursor:
-        cursor.execute("""
+    try:
+
+        items = conn.execute("""
             SELECT *
             FROM order_items
             WHERE order_id = %s
             ORDER BY id
-        """, (order_id,))
+        """, (order_id,)).fetchall()
 
-        items = cursor.fetchall()
+        return items
 
-    conn.close()
+    finally:
 
-    return items
+        conn.close()
 
 
 # ==================================================
@@ -491,20 +486,22 @@ def get_order_items(order_id):
 # ==================================================
 
 def get_orders():
+
     conn = get_connection()
 
-    with conn.cursor() as cursor:
-        cursor.execute("""
+    try:
+
+        orders = conn.execute("""
             SELECT *
             FROM orders
             ORDER BY id DESC
-        """)
+        """).fetchall()
 
-        orders = cursor.fetchall()
+        return orders
 
-    conn.close()
+    finally:
 
-    return orders
+        conn.close()
 
 
 # ==================================================
@@ -515,26 +512,29 @@ def update_order_status(
     order_id,
     status,
 ):
+
     conn = get_connection()
 
     try:
-        with conn.cursor() as cursor:
-            cursor.execute("""
-                UPDATE orders
-                SET status = %s
-                WHERE id = %s
-            """, (
-                status,
-                order_id,
-            ))
+
+        conn.execute("""
+            UPDATE orders
+            SET status = %s
+            WHERE id = %s
+        """, (
+            status,
+            order_id,
+        ))
 
         conn.commit()
 
     except Exception:
+
         conn.rollback()
         raise
 
     finally:
+
         conn.close()
 
 
@@ -543,20 +543,22 @@ def update_order_status(
 # ==================================================
 
 def get_customers():
+
     conn = get_connection()
 
-    with conn.cursor() as cursor:
-        cursor.execute("""
+    try:
+
+        customers = conn.execute("""
             SELECT *
             FROM customers
             ORDER BY id DESC
-        """)
+        """).fetchall()
 
-        customers = cursor.fetchall()
+        return customers
 
-    conn.close()
+    finally:
 
-    return customers
+        conn.close()
 
 
 # ==================================================
@@ -564,142 +566,46 @@ def get_customers():
 # ==================================================
 
 def get_statistics():
+
     conn = get_connection()
 
-    with conn.cursor() as cursor:
+    try:
 
-        cursor.execute("""
+        products_count = conn.execute("""
             SELECT COUNT(*)
             FROM products
-        """)
-        products_count = cursor.fetchone()["count"]
+        """).fetchone()["count"]
 
-        cursor.execute("""
+        customers_count = conn.execute("""
             SELECT COUNT(*)
             FROM customers
-        """)
-        customers_count = cursor.fetchone()["count"]
+        """).fetchone()["count"]
 
-        cursor.execute("""
+        orders_count = conn.execute("""
             SELECT COUNT(*)
             FROM orders
-        """)
-        orders_count = cursor.fetchone()["count"]
+        """).fetchone()["count"]
 
-        cursor.execute("""
+        delivered_count = conn.execute("""
             SELECT COUNT(*)
             FROM orders
             WHERE status = 'delivered'
-        """)
-        delivered_count = cursor.fetchone()["count"]
+        """).fetchone()["count"]
 
-        cursor.execute("""
+        total_revenue = conn.execute("""
             SELECT COALESCE(SUM(total), 0)
             FROM orders
             WHERE status = 'delivered'
-        """)
-        total_revenue = cursor.fetchone()["coalesce"]
+        """).fetchone()["coalesce"]
 
-    conn.close()
-
-    return {
-        "products": products_count,
-        "customers": customers_count,
-        "orders": orders_count,
-        "delivered": delivered_count,
-        "revenue": total_revenue,
-    }
-
-
-# ==================================================
-# CART
-# ==================================================
-
-def get_cart(user_id):
-    conn = get_connection()
-
-    with conn.cursor() as cursor:
-        cursor.execute("""
-            SELECT product_id, quantity
-            FROM cart_items
-            WHERE telegram_id = %s
-            ORDER BY id
-        """, (user_id,))
-
-        rows = cursor.fetchall()
-
-    conn.close()
-
-    return {
-        row["product_id"]: row["quantity"]
-        for row in rows
-    }
-
-
-def set_cart_quantity(
-    user_id,
-    product_id,
-    quantity,
-):
-    conn = get_connection()
-
-    try:
-        with conn.cursor() as cursor:
-
-            if quantity <= 0:
-                cursor.execute("""
-                    DELETE FROM cart_items
-                    WHERE telegram_id = %s
-                    AND product_id = %s
-                """, (
-                    user_id,
-                    product_id,
-                ))
-
-            else:
-                cursor.execute("""
-                    INSERT INTO cart_items
-                    (
-                        telegram_id,
-                        product_id,
-                        quantity
-                    )
-                    VALUES (%s, %s, %s)
-
-                    ON CONFLICT (telegram_id, product_id)
-                    DO UPDATE SET
-                        quantity = EXCLUDED.quantity
-                """, (
-                    user_id,
-                    product_id,
-                    quantity,
-                ))
-
-        conn.commit()
-
-    except Exception:
-        conn.rollback()
-        raise
+        return {
+            "products": products_count,
+            "customers": customers_count,
+            "orders": orders_count,
+            "delivered": delivered_count,
+            "revenue": total_revenue,
+        }
 
     finally:
-        conn.close()
 
-
-def clear_cart(user_id):
-    conn = get_connection()
-
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("""
-                DELETE FROM cart_items
-                WHERE telegram_id = %s
-            """, (user_id,))
-
-        conn.commit()
-
-    except Exception:
-        conn.rollback()
-        raise
-
-    finally:
         conn.close()
