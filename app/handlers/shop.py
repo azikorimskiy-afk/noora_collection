@@ -1,36 +1,298 @@
+
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.database.db import get_products, get_product
+from app.database.db import (
+    get_connection,
+    get_products,
+    get_product,
+)
 
 shop_router = Router()
 
+
 # ==================================================
-# SAVATCHALAR
+# POSTGRESQL SAVATCHA
 # ==================================================
 
-carts = {}
+class Cart:
+    """
+    PostgreSQL bilan ishlaydigan savatcha.
 
+    Oddiy dict kabi ishlaydi:
+        cart.get(...)
+        cart[product_id] = quantity
+        cart.items()
+        cart.clear()
+    """
+
+    def __init__(self, user_id: int):
+        self.user_id = user_id
+
+    # --------------------------------------------------
+    # CART ID OLISH / YARATISH
+    # --------------------------------------------------
+
+    def _get_cart_id(self):
+        conn = get_connection()
+
+        try:
+            row = conn.execute(
+                """
+                SELECT id
+                FROM carts
+                WHERE telegram_id = %s
+                """,
+                (self.user_id,),
+            ).fetchone()
+
+            if row:
+                return row["id"]
+
+            row = conn.execute(
+                """
+                INSERT INTO carts (telegram_id)
+                VALUES (%s)
+                RETURNING id
+                """,
+                (self.user_id,),
+            ).fetchone()
+
+            conn.commit()
+
+            return row["id"]
+
+        except Exception:
+            conn.rollback()
+            raise
+
+        finally:
+            conn.close()
+
+    # --------------------------------------------------
+    # BARCHA MAHSULOTLAR
+    # --------------------------------------------------
+
+    def _get_items(self):
+        cart_id = self._get_cart_id()
+
+        conn = get_connection()
+
+        try:
+            rows = conn.execute(
+                """
+                SELECT
+                    product_id,
+                    quantity
+                FROM cart_items
+                WHERE cart_id = %s
+                ORDER BY id
+                """,
+                (cart_id,),
+            ).fetchall()
+
+            return {
+                row["product_id"]: row["quantity"]
+                for row in rows
+            }
+
+        finally:
+            conn.close()
+
+    # --------------------------------------------------
+    # GET
+    # --------------------------------------------------
+
+    def get(self, product_id, default=0):
+        items = self._get_items()
+
+        return items.get(product_id, default)
+
+    # --------------------------------------------------
+    # SET
+    # --------------------------------------------------
+
+    def __setitem__(self, product_id, quantity):
+
+        cart_id = self._get_cart_id()
+
+        conn = get_connection()
+
+        try:
+
+            if quantity <= 0:
+
+                conn.execute(
+                    """
+                    DELETE FROM cart_items
+                    WHERE cart_id = %s
+                    AND product_id = %s
+                    """,
+                    (
+                        cart_id,
+                        product_id,
+                    ),
+                )
+
+            else:
+
+                conn.execute(
+                    """
+                    INSERT INTO cart_items
+                    (
+                        cart_id,
+                        product_id,
+                        quantity
+                    )
+                    VALUES (%s, %s, %s)
+
+                    ON CONFLICT (cart_id, product_id)
+                    DO UPDATE SET
+                        quantity = EXCLUDED.quantity
+                    """,
+                    (
+                        cart_id,
+                        product_id,
+                        quantity,
+                    ),
+                )
+
+            conn.commit()
+
+        except Exception:
+            conn.rollback()
+            raise
+
+        finally:
+            conn.close()
+
+    # --------------------------------------------------
+    # DELETE
+    # --------------------------------------------------
+
+    def __delitem__(self, product_id):
+
+        cart_id = self._get_cart_id()
+
+        conn = get_connection()
+
+        try:
+
+            conn.execute(
+                """
+                DELETE FROM cart_items
+                WHERE cart_id = %s
+                AND product_id = %s
+                """,
+                (
+                    cart_id,
+                    product_id,
+                ),
+            )
+
+            conn.commit()
+
+        except Exception:
+            conn.rollback()
+            raise
+
+        finally:
+            conn.close()
+
+    # --------------------------------------------------
+    # ITEMS
+    # --------------------------------------------------
+
+    def items(self):
+        return self._get_items().items()
+
+    # --------------------------------------------------
+    # KEYS
+    # --------------------------------------------------
+
+    def keys(self):
+        return self._get_items().keys()
+
+    # --------------------------------------------------
+    # VALUES
+    # --------------------------------------------------
+
+    def values(self):
+        return self._get_items().values()
+
+    # --------------------------------------------------
+    # LEN
+    # --------------------------------------------------
+
+    def __len__(self):
+        return len(self._get_items())
+
+    # --------------------------------------------------
+    # BOOL
+    # --------------------------------------------------
+
+    def __bool__(self):
+        return bool(self._get_items())
+
+    # --------------------------------------------------
+    # ITER
+    # --------------------------------------------------
+
+    def __iter__(self):
+        return iter(self._get_items())
+
+    # --------------------------------------------------
+    # CLEAR
+    # --------------------------------------------------
+
+    def clear(self):
+
+        cart_id = self._get_cart_id()
+
+        conn = get_connection()
+
+        try:
+
+            conn.execute(
+                """
+                DELETE FROM cart_items
+                WHERE cart_id = %s
+                """,
+                (cart_id,),
+            )
+
+            conn.commit()
+
+        except Exception:
+            conn.rollback()
+            raise
+
+        finally:
+            conn.close()
+
+
+# ==================================================
+# GET CART
+# ==================================================
 
 def get_cart(user_id: int):
-    if user_id not in carts:
-        carts[user_id] = {}
-
-    return carts[user_id]
+    return Cart(user_id)
 
 
 # ==================================================
-# MAHSULOTLAR
+# MAHSULOTLAR DICT
 # ==================================================
 
 def products_dict():
+
     products = get_products()
 
     result = {}
 
     for product in products:
+
         result[product["product_id"]] = {
             "name": product["name"],
             "price": product["price"],
@@ -43,7 +305,7 @@ def products_dict():
 
 
 # ==================================================
-# KATALOGNI KO‘RSATISH
+# KATALOG
 # ==================================================
 
 async def show_catalog(callback: CallbackQuery):
@@ -54,15 +316,15 @@ async def show_catalog(callback: CallbackQuery):
 
     if not products:
 
-        # Agar oldingi xabar oddiy text bo‘lsa
         if callback.message.text is not None:
+
             await callback.message.edit_text(
                 "🛍 <b>KATALOG</b>\n\n"
                 "Hozircha mahsulotlar mavjud emas."
             )
 
         else:
-            # Agar oldingi xabar rasm bo‘lsa
+
             await callback.message.delete()
 
             await callback.message.answer(
@@ -91,7 +353,6 @@ async def show_catalog(callback: CallbackQuery):
         "Mahsulotni tanlang:"
     )
 
-    # TEXT xabar
     if callback.message.text is not None:
 
         await callback.message.edit_text(
@@ -99,7 +360,6 @@ async def show_catalog(callback: CallbackQuery):
             reply_markup=builder.as_markup(),
         )
 
-    # PHOTO xabar
     else:
 
         await callback.message.delete()
@@ -119,6 +379,7 @@ def cart_text(user_id: int):
     cart = get_cart(user_id)
 
     if not cart:
+
         return (
             "🛒 <b>SAVATCHA</b>\n\n"
             "Savatchangiz hozircha bo‘sh."
@@ -142,7 +403,7 @@ def cart_text(user_id: int):
         total += subtotal
 
         text += (
-            f"{product['name']}\n"
+            f"📦 <b>{product['name']}</b>\n"
             f"   {quantity} dona × "
             f"{product['price']:,} so‘m = "
             f"<b>{subtotal:,} so‘m</b>\n\n"
@@ -179,12 +440,12 @@ def cart_keyboard(user_id: int):
             callback_data=f"quantity:{product_id}",
         )
 
-    builder.button(
-        text="🗑 Savatni tozalash",
-        callback_data="clear_cart",
-    )
-
     if cart:
+
+        builder.button(
+            text="🗑 Savatni tozalash",
+            callback_data="clear_cart",
+        )
 
         builder.button(
             text="✅ Buyurtma berish",
@@ -215,7 +476,6 @@ async def show_cart(callback: CallbackQuery):
         callback.from_user.id
     )
 
-    # TEXT xabar
     if callback.message.text is not None:
 
         await callback.message.edit_text(
@@ -223,7 +483,6 @@ async def show_cart(callback: CallbackQuery):
             reply_markup=keyboard,
         )
 
-    # PHOTO xabar
     else:
 
         await callback.message.delete()
@@ -333,23 +592,18 @@ async def product_handler(
         f"<b>{product['stock']} dona</b>"
     )
 
-    # AGAR RASM BOR BO‘LSA
     if product["image"]:
 
-        # Eski xabarni o‘chiramiz
         await callback.message.delete()
 
-        # Yangi rasmli xabar
         await callback.message.answer_photo(
             photo=product["image"],
             caption=text,
             reply_markup=builder.as_markup(),
         )
 
-    # RASM BO‘LMASA
     else:
 
-        # Eski xabar text bo‘lsa
         if callback.message.text is not None:
 
             await callback.message.edit_text(
@@ -419,7 +673,6 @@ async def add_to_cart(
         "🛒 Mahsulot savatchaga qo‘shildi!"
     )
 
-    # Mahsulot xabari RASM bo‘lishi mumkin
     await show_cart(callback)
 
 
@@ -575,11 +828,18 @@ async def minus_handler(
 
     if product_id in cart:
 
-        cart[product_id] -= 1
+        quantity = cart.get(
+            product_id,
+            0,
+        )
 
-        if cart[product_id] <= 0:
+        if quantity <= 1:
 
             del cart[product_id]
+
+        else:
+
+            cart[product_id] = quantity - 1
 
     await show_cart(callback)
 
@@ -597,12 +857,16 @@ async def clear_cart_handler(
     callback: CallbackQuery,
 ):
 
-    carts[callback.from_user.id] = {}
+    cart = get_cart(
+        callback.from_user.id
+    )
+
+    cart.clear()
 
     await show_cart(callback)
 
     await callback.answer(
-        "🗑 Savatcha tozalandi!"
+        "🗑 Savat tozalandi!"
     )
 
 
