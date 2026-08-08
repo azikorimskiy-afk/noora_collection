@@ -30,7 +30,6 @@ admin_router = Router()
 
 def is_admin(user_id: int) -> bool:
 
-```
 admin_id = os.getenv("ADMIN_ID")
 
 if not admin_id:
@@ -40,7 +39,7 @@ try:
     return user_id == int(admin_id)
 except ValueError:
     return False
-```
+
 
 # ==================================================
 
@@ -76,12 +75,12 @@ builder.button(
 builder.adjust(1)
 
 return builder.as_markup()
-```
+
 
 @admin_router.message(Command("admin"))
 async def admin_panel(message: Message):
 
-```
+
 if not is_admin(message.from_user.id):
 
     await message.answer(
@@ -95,7 +94,7 @@ await message.answer(
     "Kerakli bo‘limni tanlang:",
     reply_markup=admin_keyboard(),
 )
-```
+
 
 # ==================================================
 
@@ -110,7 +109,7 @@ async def admin_back(
 callback: CallbackQuery,
 ):
 
-```
+
 if not is_admin(callback.from_user.id):
     await callback.answer(
         "⛔ Ruxsat yo‘q!",
@@ -125,7 +124,6 @@ await callback.message.edit_text(
 )
 
 await callback.answer()
-```
 
 # ==================================================
 
@@ -140,7 +138,7 @@ async def admin_products(
 callback: CallbackQuery,
 ):
 
-```
+
 if not is_admin(callback.from_user.id):
     await callback.answer(
         "⛔ Ruxsat yo‘q!",
@@ -193,7 +191,7 @@ await callback.message.edit_text(
 )
 
 await callback.answer()
-```
+
 
 # ==================================================
 
@@ -208,7 +206,6 @@ async def admin_product(
 callback: CallbackQuery,
 ):
 
-```
 if not is_admin(callback.from_user.id):
     await callback.answer(
         "⛔ Ruxsat yo‘q!",
@@ -258,7 +255,7 @@ await callback.message.edit_text(
 )
 
 await callback.answer()
-```
+
 
 # ==================================================
 
@@ -273,7 +270,7 @@ async def delete_product_handler(
 callback: CallbackQuery,
 ):
 
-```
+
 if not is_admin(callback.from_user.id):
     await callback.answer(
         "⛔ Ruxsat yo‘q!",
@@ -314,7 +311,7 @@ await callback.message.edit_text(
 )
 
 await callback.answer()
-```
+
 
 @admin_router.callback_query(
 F.data.startswith("confirm_delete:")
@@ -323,7 +320,7 @@ async def confirm_delete(
 callback: CallbackQuery,
 ):
 
-```
+
 if not is_admin(callback.from_user.id):
     await callback.answer(
         "⛔ Ruxsat yo‘q!",
@@ -358,7 +355,7 @@ await callback.message.edit_text(
 await callback.answer(
     "🗑 Mahsulot o‘chirildi!"
 )
-```
+
 
 # ==================================================
 
@@ -374,7 +371,6 @@ callback: CallbackQuery,
 state: FSMContext,
 ):
 
-```
 if not is_admin(callback.from_user.id):
     await callback.answer(
         "⛔ Ruxsat yo‘q!",
@@ -396,7 +392,7 @@ await callback.message.answer(
 )
 
 await callback.answer()
-```
+
 
 # ==================================================
 
@@ -412,7 +408,7 @@ message: Message,
 state: FSMContext,
 ):
 
-```
+
 if not is_admin(message.from_user.id):
     return
 
@@ -451,7 +447,7 @@ await message.answer(
     "📦 <b>2/6</b>\n\n"
     "Mahsulot nomini kiriting."
 )
-```
+
 
 # ==================================================
 
@@ -467,7 +463,7 @@ message: Message,
 state: FSMContext,
 ):
 
-```
+
 if not message.text:
     await message.answer(
         "❗ Mahsulot nomini kiriting."
@@ -496,7 +492,7 @@ await message.answer(
     "Masalan:\n"
     "<code>75000</code>"
 )
-```
+
 
 # ==================================================
 
@@ -512,7 +508,7 @@ message: Message,
 state: FSMContext,
 ):
 
-```
+
 if not message.text:
     await message.answer(
         "❗ Narxni kiriting."
@@ -554,7 +550,7 @@ await message.answer(
     "📝 <b>4/6</b>\n\n"
     "Mahsulot tavsifini yozing."
 )
-```
+
 
 # ==================================================
 
@@ -570,7 +566,7 @@ message: Message,
 state: FSMContext,
 ):
 
-```
+
 if not message.text:
     await message.answer(
         "❗ Tavsifni yozing."
@@ -591,7 +587,7 @@ await message.answer(
     "🖼 <b>5/6</b>\n\n"
     "Endi mahsulot rasmini yuboring."
 )
-```
+
 
 # ==================================================
 
@@ -608,7 +604,7 @@ message: Message,
 state: FSMContext,
 ):
 
-```
+
 photo = message.photo[-1]
 
 await state.update_data(
@@ -625,7 +621,7 @@ await message.answer(
     "Masalan:\n"
     "<code>50</code>"
 )
-```
+
 
 @admin_router.message(
 AddProductState.waiting_image
@@ -634,11 +630,10 @@ async def product_image_error(
 message: Message,
 ):
 
-```
 await message.answer(
     "❗ Iltimos, mahsulot rasmini yuboring."
 )
-```
+
 
 # ==================================================
 
@@ -654,7 +649,7 @@ message: Message,
 state: FSMContext,
 ):
 
-```
+
 if not message.text:
     await message.answer(
         "❗ Qoldiq sonini kiriting."
@@ -721,7 +716,7 @@ await message.answer(
     f"📦 Qoldiq: {stock} dona\n\n"
     "⚙️ /admin orqali boshqarishingiz mumkin."
 )
-```
+
 
 # ==================================================
 
@@ -736,7 +731,7 @@ async def admin_orders(
 callback: CallbackQuery,
 ):
 
-```
+
 if not is_admin(callback.from_user.id):
     await callback.answer(
         "⛔ Ruxsat yo‘q!",
@@ -801,7 +796,7 @@ await callback.message.edit_text(
 )
 
 await callback.answer()
-```
+
 
 # ==================================================
 
@@ -816,7 +811,6 @@ async def admin_order(
 callback: CallbackQuery,
 ):
 
-```
 if not is_admin(callback.from_user.id):
     await callback.answer(
         "⛔ Ruxsat yo‘q!",
@@ -890,7 +884,6 @@ await callback.message.edit_text(
 )
 
 await callback.answer()
-```
 
 # ==================================================
 
@@ -905,7 +898,6 @@ async def admin_customers(
 callback: CallbackQuery,
 ):
 
-```
 if not is_admin(callback.from_user.id):
     await callback.answer(
         "⛔ Ruxsat yo‘q!",
@@ -950,7 +942,7 @@ await callback.message.edit_text(
 )
 
 await callback.answer()
-```
+
 
 # ==================================================
 
@@ -965,7 +957,6 @@ async def admin_stats(
 callback: CallbackQuery,
 ):
 
-```
 if not is_admin(callback.from_user.id):
     await callback.answer(
         "⛔ Ruxsat yo‘q!",
@@ -1002,7 +993,6 @@ await callback.message.edit_text(
 )
 
 await callback.answer()
-```
 
 # ==================================================
 
@@ -1017,6 +1007,5 @@ async def nothing_handler(
 callback: CallbackQuery,
 ):
 
-```
 await callback.answer()
 
