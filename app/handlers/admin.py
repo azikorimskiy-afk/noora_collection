@@ -974,7 +974,6 @@ async def admin_customers(
 async def admin_stats(
     callback: CallbackQuery,
 ):
-
     if not is_admin(callback.from_user.id):
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
@@ -982,25 +981,16 @@ async def admin_stats(
         )
         return
 
-    # Tugma bosilganda darhol javob beramiz
-    await callback.answer()
-
     try:
         stats = get_statistics()
 
-        products_count = stats.get("products", 0)
-        customers_count = stats.get("customers", 0)
-        orders_count = stats.get("orders", 0)
-        delivered_count = stats.get("delivered", 0)
-        revenue = stats.get("revenue", 0)
-
         text = (
             "📊 <b>STATISTIKA</b>\n\n"
-            f"📦 Mahsulotlar: <b>{products_count}</b>\n"
-            f"👥 Mijozlar: <b>{customers_count}</b>\n"
-            f"📋 Buyurtmalar: <b>{orders_count}</b>\n"
-            f"✅ Yetkazilgan: <b>{delivered_count}</b>\n"
-            f"💰 Tushum: <b>{revenue:,} so‘m</b>"
+            f"📦 Mahsulotlar: <b>{stats['products']}</b>\n"
+            f"👥 Mijozlar: <b>{stats['customers']}</b>\n"
+            f"📋 Buyurtmalar: <b>{stats['orders']}</b>\n"
+            f"✅ Yetkazilgan: <b>{stats['delivered']}</b>\n"
+            f"💰 Tushum: <b>{stats['revenue']:,} so‘m</b>"
         )
 
         builder = InlineKeyboardBuilder()
@@ -1017,9 +1007,22 @@ async def admin_stats(
 
         builder.adjust(1)
 
-        await callback.message.edit_text(
-            text,
-            reply_markup=builder.as_markup(),
+        try:
+            await callback.message.edit_text(
+                text,
+                reply_markup=builder.as_markup(),
+            )
+
+        except Exception as e:
+
+            # Telegram:
+            # message is not modified
+            # xatosini e'tiborsiz qoldiramiz
+            if "message is not modified" not in str(e):
+                raise
+
+        await callback.answer(
+            "🔄 Statistika yangilandi!"
         )
 
     except Exception as e:
@@ -1029,13 +1032,7 @@ async def admin_stats(
             repr(e),
         )
 
-        await callback.message.edit_text(
-            "❌ <b>Statistikani yuklashda xatolik!</b>\n\n"
-            "Railway Logs orqali xatoni tekshirish kerak.",
-            reply_markup=InlineKeyboardBuilder()
-                .button(
-                    text="⬅️ Admin panel",
-                    callback_data="admin_back",
-                )
-                .as_markup(),
+        await callback.answer(
+            "❌ Statistikani yuklashda xatolik!",
+            show_alert=True,
         )
