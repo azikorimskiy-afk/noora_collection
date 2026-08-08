@@ -50,7 +50,7 @@ except ValueError:
 
 def admin_keyboard():
 
-```
+
 builder = InlineKeyboardBuilder()
 
 builder.button(
