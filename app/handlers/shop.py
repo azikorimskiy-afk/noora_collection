@@ -3,40 +3,16 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from app.database.db import get_products, get_product
+
+
 shop_router = Router()
 
 
-PRODUCTS = {
-    "tasbeh": {
-        "name": "📿 Tasbeh",
-        "price": 50000,
-        "description": "Chiroyli va sifatli tasbeh.",
-    },
-    "joynamoz": {
-        "name": "🕌 Joynamoz",
-        "price": 150000,
-        "description": "Yumshoq va sifatli joynamoz.",
-    },
-    "himor": {
-        "name": "🧕 Himor",
-        "price": 120000,
-        "description": "Qulay va chiroyli himor.",
-    },
-    "abaya": {
-        "name": "👗 Abaya",
-        "price": 350000,
-        "description": "Zamonaviy va nafis abaya.",
-    },
-    "doppi": {
-        "name": "🧢 Do‘ppi",
-        "price": 80000,
-        "description": "Milliy uslubdagi chiroyli do‘ppi.",
-    },
-}
+# =========================
+# SAVATCHALAR
+# =========================
 
-
-# Vaqtinchalik savatchalar
-# Keyin database bilan almashtiramiz.
 carts = {}
 
 
@@ -47,20 +23,55 @@ def get_cart(user_id: int):
     return carts[user_id]
 
 
+# =========================
+# MAHSULOTLAR
+# =========================
+
+def products_dict():
+    products = get_products()
+
+    result = {}
+
+    for product in products:
+        result[product["product_id"]] = {
+            "name": product["name"],
+            "price": product["price"],
+            "description": product["description"],
+            "image": product["image"],
+            "stock": product["stock"],
+        }
+
+    return result
+
+
+# =========================
+# SAVATCHA MATNI
+# =========================
+
 def cart_text(user_id: int):
     cart = get_cart(user_id)
 
     if not cart:
-        return "🛒 <b>SAVATCHA</b>\n\nSavatchangiz hozircha bo‘sh."
+        return (
+            "🛒 <b>SAVATCHA</b>\n\n"
+            "Savatchangiz hozircha bo‘sh."
+        )
+
+    products = products_dict()
 
     text = "🛒 <b>SAVATCHA</b>\n\n"
 
     total = 0
 
     for product_id, quantity in cart.items():
-        product = PRODUCTS[product_id]
+
+        product = products.get(product_id)
+
+        if not product:
+            continue
 
         subtotal = product["price"] * quantity
+
         total += subtotal
 
         text += (
@@ -70,18 +81,31 @@ def cart_text(user_id: int):
             f"<b>{subtotal:,} so‘m</b>\n\n"
         )
 
-    text += f"💰 <b>Jami: {total:,} so‘m</b>"
+    text += (
+        f"💰 <b>Jami: {total:,} so‘m</b>"
+    )
 
     return text
 
 
+# =========================
+# SAVATCHA TUGMALARI
+# =========================
+
 def cart_keyboard(user_id: int):
+
     cart = get_cart(user_id)
+
+    products = products_dict()
 
     builder = InlineKeyboardBuilder()
 
     for product_id, quantity in cart.items():
-        product = PRODUCTS[product_id]
+
+        product = products.get(product_id)
+
+        if not product:
+            continue
 
         builder.button(
             text=f"➖ {product['name']} {quantity} ➕",
@@ -109,8 +133,13 @@ def cart_keyboard(user_id: int):
     return builder.as_markup()
 
 
+# =========================
+# START
+# =========================
+
 @shop_router.message(CommandStart())
 async def start_handler(message: Message):
+
     builder = InlineKeyboardBuilder()
 
     builder.button(
@@ -133,14 +162,35 @@ async def start_handler(message: Message):
     )
 
 
+# =========================
+# KATALOG
+# =========================
+
 @shop_router.callback_query(F.data == "catalog")
-async def catalog_handler(callback: CallbackQuery):
+async def catalog_handler(
+    callback: CallbackQuery,
+):
+
+    products = get_products()
+
     builder = InlineKeyboardBuilder()
 
-    for key, product in PRODUCTS.items():
+    if not products:
+
+        await callback.message.edit_text(
+            "🛍 <b>KATALOG</b>\n\n"
+            "Hozircha mahsulotlar mavjud emas."
+        )
+
+        await callback.answer()
+
+        return
+
+    for product in products:
+
         builder.button(
             text=product["name"],
-            callback_data=f"product:{key}",
+            callback_data=f"product:{product['product_id']}",
         )
 
     builder.button(
@@ -159,17 +209,45 @@ async def catalog_handler(callback: CallbackQuery):
     await callback.answer()
 
 
-@shop_router.callback_query(F.data.startswith("product:"))
-async def product_handler(callback: CallbackQuery):
+# =========================
+# MAHSULOT
+# =========================
+
+@shop_router.callback_query(
+    F.data.startswith("product:")
+)
+async def product_handler(
+    callback: CallbackQuery,
+):
+
     product_id = callback.data.split(":")[1]
-    product = PRODUCTS[product_id]
+
+    product = get_product(product_id)
+
+    if not product:
+
+        await callback.answer(
+            "❌ Mahsulot topilmadi!",
+            show_alert=True,
+        )
+
+        return
 
     builder = InlineKeyboardBuilder()
 
-    builder.button(
-        text="🛒 Savatga qo‘shish",
-        callback_data=f"add:{product_id}",
-    )
+    if product["stock"] > 0:
+
+        builder.button(
+            text="🛒 Savatga qo‘shish",
+            callback_data=f"add:{product_id}",
+        )
+
+    else:
+
+        builder.button(
+            text="❌ Sotuvda yo‘q",
+            callback_data="nothing",
+        )
 
     builder.button(
         text="⬅️ Katalog",
@@ -178,51 +256,147 @@ async def product_handler(callback: CallbackQuery):
 
     builder.adjust(1)
 
-    await callback.message.edit_text(
+    text = (
         f"<b>{product['name']}</b>\n\n"
         f"📝 {product['description']}\n\n"
-        f"💰 Narxi: <b>{product['price']:,} so‘m</b>",
-        reply_markup=builder.as_markup(),
+        f"💰 Narxi: "
+        f"<b>{product['price']:,} so‘m</b>\n"
+        f"📦 Qoldiq: "
+        f"<b>{product['stock']} dona</b>"
     )
+
+    if product["image"]:
+
+        await callback.message.delete()
+
+        await callback.message.answer_photo(
+            photo=product["image"],
+            caption=text,
+            reply_markup=builder.as_markup(),
+        )
+
+    else:
+
+        await callback.message.edit_text(
+            text,
+            reply_markup=builder.as_markup(),
+        )
 
     await callback.answer()
 
 
-@shop_router.callback_query(F.data.startswith("add:"))
-async def add_to_cart(callback: CallbackQuery):
+# =========================
+# SAVATGA QO‘SHISH
+# =========================
+
+@shop_router.callback_query(
+    F.data.startswith("add:")
+)
+async def add_to_cart(
+    callback: CallbackQuery,
+):
+
     product_id = callback.data.split(":")[1]
 
-    cart = get_cart(callback.from_user.id)
+    product = get_product(product_id)
 
-    if product_id not in cart:
-        cart[product_id] = 1
-    else:
-        cart[product_id] += 1
+    if not product:
+
+        await callback.answer(
+            "❌ Mahsulot topilmadi!",
+            show_alert=True,
+        )
+
+        return
+
+    cart = get_cart(
+        callback.from_user.id
+    )
+
+    current_quantity = cart.get(
+        product_id,
+        0,
+    )
+
+    if current_quantity >= product["stock"]:
+
+        await callback.answer(
+            "❌ Omborda bundan ko‘p mahsulot yo‘q!",
+            show_alert=True,
+        )
+
+        return
+
+    cart[product_id] = (
+        current_quantity + 1
+    )
 
     await callback.answer(
-        "🛒 Mahsulot savatchaga qo‘shildi!",
-        show_alert=False,
+        "🛒 Mahsulot savatchaga qo‘shildi!"
     )
 
     await callback.message.edit_text(
-        cart_text(callback.from_user.id),
-        reply_markup=cart_keyboard(callback.from_user.id),
+        cart_text(
+            callback.from_user.id
+        ),
+        reply_markup=cart_keyboard(
+            callback.from_user.id
+        ),
     )
 
 
-@shop_router.callback_query(F.data == "cart")
-async def cart_handler(callback: CallbackQuery):
+# =========================
+# SAVATCHA
+# =========================
+
+@shop_router.callback_query(
+    F.data == "cart"
+)
+async def cart_handler(
+    callback: CallbackQuery,
+):
+
     await callback.message.edit_text(
-        cart_text(callback.from_user.id),
-        reply_markup=cart_keyboard(callback.from_user.id),
+        cart_text(
+            callback.from_user.id
+        ),
+        reply_markup=cart_keyboard(
+            callback.from_user.id
+        ),
     )
 
     await callback.answer()
 
 
-@shop_router.callback_query(F.data.startswith("quantity:"))
-async def quantity_handler(callback: CallbackQuery):
+# =========================
+# MIQDOR
+# =========================
+
+@shop_router.callback_query(
+    F.data.startswith("quantity:")
+)
+async def quantity_handler(
+    callback: CallbackQuery,
+):
+
     product_id = callback.data.split(":")[1]
+
+    cart = get_cart(
+        callback.from_user.id
+    )
+
+    quantity = cart.get(
+        product_id,
+        0,
+    )
+
+    product = get_product(product_id)
+
+    if not product:
+        await callback.answer(
+            "Mahsulot topilmadi!"
+        )
+        return
 
     builder = InlineKeyboardBuilder()
 
@@ -232,7 +406,7 @@ async def quantity_handler(callback: CallbackQuery):
     )
 
     builder.button(
-        text=f"{get_cart(callback.from_user.id).get(product_id, 0)} dona",
+        text=f"{quantity} dona",
         callback_data="nothing",
     )
 
@@ -249,7 +423,7 @@ async def quantity_handler(callback: CallbackQuery):
     builder.adjust(3, 1)
 
     await callback.message.edit_text(
-        f"📦 <b>{PRODUCTS[product_id]['name']}</b>\n\n"
+        f"📦 <b>{product['name']}</b>\n\n"
         "Miqdorni tanlang:",
         reply_markup=builder.as_markup(),
     )
@@ -257,54 +431,132 @@ async def quantity_handler(callback: CallbackQuery):
     await callback.answer()
 
 
-@shop_router.callback_query(F.data.startswith("plus:"))
-async def plus_handler(callback: CallbackQuery):
+# =========================
+# PLUS
+# =========================
+
+@shop_router.callback_query(
+    F.data.startswith("plus:")
+)
+async def plus_handler(
+    callback: CallbackQuery,
+):
+
     product_id = callback.data.split(":")[1]
 
-    cart = get_cart(callback.from_user.id)
+    cart = get_cart(
+        callback.from_user.id
+    )
 
-    cart[product_id] = cart.get(product_id, 0) + 1
+    product = get_product(product_id)
+
+    if not product:
+        await callback.answer(
+            "Mahsulot topilmadi!"
+        )
+        return
+
+    current = cart.get(
+        product_id,
+        0,
+    )
+
+    if current >= product["stock"]:
+
+        await callback.answer(
+            "❌ Ombordagi qoldiq tugadi!",
+            show_alert=True,
+        )
+
+        return
+
+    cart[product_id] = current + 1
 
     await callback.message.edit_text(
-        cart_text(callback.from_user.id),
-        reply_markup=cart_keyboard(callback.from_user.id),
+        cart_text(
+            callback.from_user.id
+        ),
+        reply_markup=cart_keyboard(
+            callback.from_user.id
+        ),
     )
 
     await callback.answer()
 
 
-@shop_router.callback_query(F.data.startswith("minus:"))
-async def minus_handler(callback: CallbackQuery):
+# =========================
+# MINUS
+# =========================
+
+@shop_router.callback_query(
+    F.data.startswith("minus:")
+)
+async def minus_handler(
+    callback: CallbackQuery,
+):
+
     product_id = callback.data.split(":")[1]
 
-    cart = get_cart(callback.from_user.id)
+    cart = get_cart(
+        callback.from_user.id
+    )
 
     if product_id in cart:
+
         cart[product_id] -= 1
 
         if cart[product_id] <= 0:
+
             del cart[product_id]
 
     await callback.message.edit_text(
-        cart_text(callback.from_user.id),
-        reply_markup=cart_keyboard(callback.from_user.id),
+        cart_text(
+            callback.from_user.id
+        ),
+        reply_markup=cart_keyboard(
+            callback.from_user.id
+        ),
     )
 
     await callback.answer()
 
 
-@shop_router.callback_query(F.data == "clear_cart")
-async def clear_cart_handler(callback: CallbackQuery):
+# =========================
+# SAVATNI TOZALASH
+# =========================
+
+@shop_router.callback_query(
+    F.data == "clear_cart"
+)
+async def clear_cart_handler(
+    callback: CallbackQuery,
+):
+
     carts[callback.from_user.id] = {}
 
     await callback.message.edit_text(
-        cart_text(callback.from_user.id),
-        reply_markup=cart_keyboard(callback.from_user.id),
+        cart_text(
+            callback.from_user.id
+        ),
+        reply_markup=cart_keyboard(
+            callback.from_user.id
+        ),
     )
 
-    await callback.answer("🗑 Savatcha tozalandi!")
+    await callback.answer(
+        "🗑 Savatcha tozalandi!"
+    )
 
 
-@shop_router.callback_query(F.data == "nothing")
-async def nothing_handler(callback: CallbackQuery):
+# =========================
+# HECH NIMA QILMASLIK
+# =========================
+
+@shop_router.callback_query(
+    F.data == "nothing"
+)
+async def nothing_handler(
+    callback: CallbackQuery,
+):
+
     await callback.answer()
