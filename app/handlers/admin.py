@@ -1,4 +1,3 @@
-```python
 import os
 
 from aiogram import Router, F
