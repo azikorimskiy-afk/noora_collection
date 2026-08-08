@@ -530,34 +530,35 @@ def update_order_status(
 # ============================================================
 
 def get_statistics():
-    """
-    Admin panel uchun statistika.
-    """
+    conn = get_connection()
 
     try:
-        products = get_products()
-        customers = get_customers()
-        orders = get_orders()
+        products_count = conn.execute("""
+            SELECT COUNT(*) AS count
+            FROM products
+        """).fetchone()["count"]
 
-        products_count = len(products)
-        customers_count = len(customers)
-        orders_count = len(orders)
+        customers_count = conn.execute("""
+            SELECT COUNT(*) AS count
+            FROM customers
+        """).fetchone()["count"]
 
-        delivered_count = 0
-        total_revenue = 0
+        orders_count = conn.execute("""
+            SELECT COUNT(*) AS count
+            FROM orders
+        """).fetchone()["count"]
 
-        for order in orders:
+        delivered_count = conn.execute("""
+            SELECT COUNT(*) AS count
+            FROM orders
+            WHERE status = 'delivered'
+        """).fetchone()["count"]
 
-            status = order.get("status")
-
-            if status == "delivered":
-
-                delivered_count += 1
-
-                total = order.get("total", 0)
-
-                if total:
-                    total_revenue += int(total)
+        total_revenue = conn.execute("""
+            SELECT COALESCE(SUM(total), 0) AS revenue
+            FROM orders
+            WHERE status = 'delivered'
+        """).fetchone()["revenue"]
 
         return {
             "products": products_count,
@@ -568,18 +569,8 @@ def get_statistics():
         }
 
     except Exception as e:
+        print("❌ GET STATISTICS ERROR:", repr(e))
+        raise
 
-        print(
-            "❌ GET STATISTICS ERROR:",
-            repr(e),
-        )
-
-        return {
-            "products": 0,
-            "customers": 0,
-            "orders": 0,
-            "delivered": 0,
-            "revenue": 0,
-        }
     finally:
         conn.close()
