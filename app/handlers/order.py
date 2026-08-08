@@ -1,4 +1,3 @@
-```python
 import os
 
 from aiogram import Router, F, Bot
@@ -514,4 +513,4 @@ async def admin_cancel(
         + "\n\n"
         "🔴 <b>STATUS: BEKOR QILINDI</b>"
     )
-```
+
