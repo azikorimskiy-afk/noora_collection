@@ -200,13 +200,13 @@ async def catalog_handler(
 
     builder.adjust(1)
 
-    await callback.message.edit_text(
-        "🛍 <b>KATALOG</b>\n\n"
-        "Mahsulotni tanlang:",
-        reply_markup=builder.as_markup(),
-    )
+  await callback.message.answer(
+    "🛍 <b>KATALOG</b>\n\n"
+    "Mahsulotni tanlang:",
+    reply_markup=builder.as_markup(),
+)
 
-    await callback.answer()
+await callback.answer()
 
 
 # =========================
