@@ -187,3 +187,227 @@ async def admin_back(callback: CallbackQuery):
     )
 
     await callback.answer()
+
+from aiogram.fsm.context import FSMContext
+
+from app.states.admin import AddProductState
+from app.database.db import add_product
+
+
+@admin_router.callback_query(F.data == "admin_add_product")
+async def admin_add_product(
+    callback: CallbackQuery,
+    state: FSMContext,
+):
+    if not is_admin(callback.from_user.id):
+        await callback.answer(
+            "⛔ Ruxsat yo‘q!",
+            show_alert=True,
+        )
+        return
+
+    await state.set_state(
+        AddProductState.waiting_product_id
+    )
+
+    await callback.message.answer(
+        "🆔 Mahsulot uchun ID kiriting.\n\n"
+        "Masalan:\n"
+        "<code>tasbeh2</code>"
+    )
+
+    await callback.answer()
+
+
+@admin_router.message(AddProductState.waiting_product_id)
+async def product_id_received(
+    message: Message,
+    state: FSMContext,
+):
+    product_id = message.text.strip().lower()
+
+    if not product_id:
+        await message.answer(
+            "❗ ID bo‘sh bo‘lmasligi kerak."
+        )
+        return
+
+    await state.update_data(
+        product_id=product_id
+    )
+
+    await state.set_state(
+        AddProductState.waiting_name
+    )
+
+    await message.answer(
+        "📦 Mahsulot nomini kiriting:\n\n"
+        "Masalan: 📿 Tasbeh Premium"
+    )
+
+
+@admin_router.message(AddProductState.waiting_name)
+async def product_name_received(
+    message: Message,
+    state: FSMContext,
+):
+    name = message.text.strip()
+
+    await state.update_data(
+        name=name
+    )
+
+    await state.set_state(
+        AddProductState.waiting_price
+    )
+
+    await message.answer(
+        "💰 Mahsulot narxini kiriting.\n\n"
+        "Masalan: <code>75000</code>"
+    )
+
+
+@admin_router.message(AddProductState.waiting_price)
+async def product_price_received(
+    message: Message,
+    state: FSMContext,
+):
+    try:
+        price = int(
+            message.text.replace(" ", "")
+        )
+    except ValueError:
+        await message.answer(
+            "❗ Narxni faqat raqam bilan kiriting.\n\n"
+            "Masalan: 75000"
+        )
+        return
+
+    if price <= 0:
+        await message.answer(
+            "❗ Narx 0 dan katta bo‘lishi kerak."
+        )
+        return
+
+    await state.update_data(
+        price=price
+    )
+
+    await state.set_state(
+        AddProductState.waiting_description
+    )
+
+    await message.answer(
+        "📝 Mahsulot tavsifini kiriting:"
+    )
+
+
+@admin_router.message(
+    AddProductState.waiting_description
+)
+async def product_description_received(
+    message: Message,
+    state: FSMContext,
+):
+    description = message.text.strip()
+
+    await state.update_data(
+        description=description
+    )
+
+    await state.set_state(
+        AddProductState.waiting_image
+    )
+
+    await message.answer(
+        "🖼 Mahsulot rasmini yuboring."
+    )
+
+
+@admin_router.message(
+    AddProductState.waiting_image,
+    F.photo,
+)
+async def product_image_received(
+    message: Message,
+    state: FSMContext,
+):
+    photo = message.photo[-1]
+
+    await state.update_data(
+        image=photo.file_id
+    )
+
+    await state.set_state(
+        AddProductState.waiting_stock
+    )
+
+    await message.answer(
+        "📦 Qoldiqdagi mahsulot sonini kiriting.\n\n"
+        "Masalan: <code>50</code>"
+    )
+
+
+@admin_router.message(
+    AddProductState.waiting_image
+)
+async def product_image_error(
+    message: Message,
+):
+    await message.answer(
+        "❗ Iltimos, mahsulot rasmini yuboring."
+    )
+
+
+@admin_router.message(
+    AddProductState.waiting_stock
+)
+async def product_stock_received(
+    message: Message,
+    state: FSMContext,
+):
+    try:
+        stock = int(message.text.strip())
+    except ValueError:
+        await message.answer(
+            "❗ Qoldiqni faqat raqam bilan kiriting."
+        )
+        return
+
+    if stock < 0:
+        await message.answer(
+            "❗ Qoldiq manfiy bo‘lishi mumkin emas."
+        )
+        return
+
+    data = await state.get_data()
+
+    try:
+        add_product(
+            product_id=data["product_id"],
+            name=data["name"],
+            price=data["price"],
+            description=data["description"],
+            image=data["image"],
+            stock=stock,
+        )
+
+    except Exception as e:
+        print("PRODUCT ADD ERROR:", repr(e))
+
+        await message.answer(
+            "❌ Mahsulot qo‘shishda xatolik yuz berdi.\n\n"
+            "Ehtimol bu ID allaqachon mavjud."
+        )
+
+        await state.clear()
+        return
+
+    await state.clear()
+
+    await message.answer(
+        "✅ <b>Mahsulot muvaffaqiyatli qo‘shildi!</b>\n\n"
+        f"📦 {data['name']}\n"
+        f"💰 {data['price']:,} so‘m\n"
+        f"📦 Qoldiq: {stock} dona"
+    )
