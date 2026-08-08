@@ -1,17 +1,23 @@
+```python
 import os
 
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
+from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.handlers.shop import PRODUCTS
-from aiogram.fsm.context import FSMContext
 from app.states.admin import AddProductState
 from app.database.db import add_product
 
+
 admin_router = Router()
 
+
+# =========================
+# ADMIN TEKSHIRISH
+# =========================
 
 def is_admin(user_id: int) -> bool:
     admin_id = os.getenv("ADMIN_ID")
@@ -25,8 +31,13 @@ def is_admin(user_id: int) -> bool:
         return False
 
 
+# =========================
+# ADMIN PANEL
+# =========================
+
 @admin_router.message(Command("admin"))
 async def admin_panel(message: Message):
+
     if not is_admin(message.from_user.id):
         await message.answer(
             "⛔ Sizda admin panelga kirish huquqi yo‘q."
@@ -64,8 +75,13 @@ async def admin_panel(message: Message):
     )
 
 
+# =========================
+# MAHSULOTLAR
+# =========================
+
 @admin_router.callback_query(F.data == "admin_products")
 async def admin_products(callback: CallbackQuery):
+
     if not is_admin(callback.from_user.id):
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
@@ -76,6 +92,7 @@ async def admin_products(callback: CallbackQuery):
     builder = InlineKeyboardBuilder()
 
     for product_id, product in PRODUCTS.items():
+
         builder.button(
             text=product["name"],
             callback_data=f"admin_product:{product_id}",
@@ -102,8 +119,15 @@ async def admin_products(callback: CallbackQuery):
     await callback.answer()
 
 
-@admin_router.callback_query(F.data.startswith("admin_product:"))
+# =========================
+# MAHSULOT
+# =========================
+
+@admin_router.callback_query(
+    F.data.startswith("admin_product:")
+)
 async def admin_product(callback: CallbackQuery):
+
     if not is_admin(callback.from_user.id):
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
@@ -112,6 +136,7 @@ async def admin_product(callback: CallbackQuery):
         return
 
     product_id = callback.data.split(":")[1]
+
     product = PRODUCTS.get(product_id)
 
     if not product:
@@ -150,8 +175,13 @@ async def admin_product(callback: CallbackQuery):
     await callback.answer()
 
 
+# =========================
+# ADMIN ORQAGA
+# =========================
+
 @admin_router.callback_query(F.data == "admin_back")
 async def admin_back(callback: CallbackQuery):
+
     if not is_admin(callback.from_user.id):
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
@@ -191,17 +221,19 @@ async def admin_back(callback: CallbackQuery):
 
     await callback.answer()
 
-from aiogram.fsm.context import FSMContext
 
-from app.states.admin import AddProductState
-from app.database.db import add_product
+# ==================================================
+# MAHSULOT QO‘SHISH
+# ==================================================
 
-
-@admin_router.callback_query(F.data == "admin_add_product")
+@admin_router.callback_query(
+    F.data == "admin_add_product"
+)
 async def admin_add_product(
     callback: CallbackQuery,
     state: FSMContext,
 ):
+
     if not is_admin(callback.from_user.id):
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
@@ -209,12 +241,15 @@ async def admin_add_product(
         )
         return
 
+    await state.clear()
+
     await state.set_state(
         AddProductState.waiting_product_id
     )
 
     await callback.message.answer(
-        "🆔 Mahsulot uchun ID kiriting.\n\n"
+        "🆔 <b>1/6</b>\n\n"
+        "Mahsulot uchun ID kiriting.\n\n"
         "Masalan:\n"
         "<code>tasbeh2</code>"
     )
@@ -222,11 +257,24 @@ async def admin_add_product(
     await callback.answer()
 
 
-@admin_router.message(AddProductState.waiting_product_id)
+# ==================================================
+# 1. ID
+# ==================================================
+
+@admin_router.message(
+    AddProductState.waiting_product_id
+)
 async def product_id_received(
     message: Message,
     state: FSMContext,
 ):
+
+    if not message.text:
+        await message.answer(
+            "❗ ID matn ko‘rinishida bo‘lishi kerak."
+        )
+        return
+
     product_id = message.text.strip().lower()
 
     if not product_id:
@@ -244,17 +292,38 @@ async def product_id_received(
     )
 
     await message.answer(
-        "📦 Mahsulot nomini kiriting:\n\n"
-        "Masalan: 📿 Tasbeh Premium"
+        "📦 <b>2/6</b>\n\n"
+        "Endi mahsulot nomini kiriting.\n\n"
+        "Masalan:\n"
+        "<b>📿 Tasbeh Premium</b>"
     )
 
 
-@admin_router.message(AddProductState.waiting_name)
+# ==================================================
+# 2. NOM
+# ==================================================
+
+@admin_router.message(
+    AddProductState.waiting_name
+)
 async def product_name_received(
     message: Message,
     state: FSMContext,
 ):
+
+    if not message.text:
+        await message.answer(
+            "❗ Mahsulot nomini kiriting."
+        )
+        return
+
     name = message.text.strip()
+
+    if len(name) < 2:
+        await message.answer(
+            "❗ Mahsulot nomi juda qisqa."
+        )
+        return
 
     await state.update_data(
         name=name
@@ -265,16 +334,31 @@ async def product_name_received(
     )
 
     await message.answer(
-        "💰 Mahsulot narxini kiriting.\n\n"
-        "Masalan: <code>75000</code>"
+        "💰 <b>3/6</b>\n\n"
+        "Mahsulot narxini kiriting.\n\n"
+        "Masalan:\n"
+        "<code>75000</code>"
     )
 
 
-@admin_router.message(AddProductState.waiting_price)
+# ==================================================
+# 3. NARX
+# ==================================================
+
+@admin_router.message(
+    AddProductState.waiting_price
+)
 async def product_price_received(
     message: Message,
     state: FSMContext,
 ):
+
+    if not message.text:
+        await message.answer(
+            "❗ Narxni kiriting."
+        )
+        return
+
     try:
         price = int(
             message.text.replace(" ", "")
@@ -282,7 +366,7 @@ async def product_price_received(
     except ValueError:
         await message.answer(
             "❗ Narxni faqat raqam bilan kiriting.\n\n"
-            "Masalan: 75000"
+            "Masalan: <code>75000</code>"
         )
         return
 
@@ -301,9 +385,14 @@ async def product_price_received(
     )
 
     await message.answer(
-        "📝 Mahsulot tavsifini kiriting:"
+        "📝 <b>4/6</b>\n\n"
+        "Mahsulot tavsifini yozing."
     )
 
+
+# ==================================================
+# 4. TAVSIF
+# ==================================================
 
 @admin_router.message(
     AddProductState.waiting_description
@@ -312,6 +401,13 @@ async def product_description_received(
     message: Message,
     state: FSMContext,
 ):
+
+    if not message.text:
+        await message.answer(
+            "❗ Tavsifni yozing."
+        )
+        return
+
     description = message.text.strip()
 
     await state.update_data(
@@ -323,18 +419,24 @@ async def product_description_received(
     )
 
     await message.answer(
-        "🖼 Mahsulot rasmini yuboring."
+        "🖼 <b>5/6</b>\n\n"
+        "Endi mahsulot rasmini yuboring."
     )
 
 
+# ==================================================
+# 5. RASM
+# ==================================================
+
 @admin_router.message(
     AddProductState.waiting_image,
-    F.photo,
+    F.photo
 )
 async def product_image_received(
     message: Message,
     state: FSMContext,
 ):
+
     photo = message.photo[-1]
 
     await state.update_data(
@@ -346,8 +448,10 @@ async def product_image_received(
     )
 
     await message.answer(
-        "📦 Qoldiqdagi mahsulot sonini kiriting.\n\n"
-        "Masalan: <code>50</code>"
+        "📦 <b>6/6</b>\n\n"
+        "Qoldiqdagi mahsulot sonini kiriting.\n\n"
+        "Masalan:\n"
+        "<code>50</code>"
     )
 
 
@@ -357,10 +461,15 @@ async def product_image_received(
 async def product_image_error(
     message: Message,
 ):
+
     await message.answer(
-        "❗ Iltimos, mahsulot rasmini yuboring."
+        "❗ Iltimos, <b>rasm</b> yuboring."
     )
 
+
+# ==================================================
+# 6. QOLDIQ
+# ==================================================
 
 @admin_router.message(
     AddProductState.waiting_stock
@@ -369,11 +478,21 @@ async def product_stock_received(
     message: Message,
     state: FSMContext,
 ):
+
+    if not message.text:
+        await message.answer(
+            "❗ Qoldiq sonini kiriting."
+        )
+        return
+
     try:
-        stock = int(message.text.strip())
+        stock = int(
+            message.text.strip()
+        )
     except ValueError:
         await message.answer(
-            "❗ Qoldiqni faqat raqam bilan kiriting."
+            "❗ Qoldiqni faqat raqam bilan kiriting.\n\n"
+            "Masalan: <code>50</code>"
         )
         return
 
@@ -386,6 +505,7 @@ async def product_stock_received(
     data = await state.get_data()
 
     try:
+
         add_product(
             product_id=data["product_id"],
             name=data["name"],
@@ -396,10 +516,14 @@ async def product_stock_received(
         )
 
     except Exception as e:
-        print("PRODUCT ADD ERROR:", repr(e))
+
+        print(
+            "❌ PRODUCT ADD ERROR:",
+            repr(e)
+        )
 
         await message.answer(
-            "❌ Mahsulot qo‘shishda xatolik yuz berdi.\n\n"
+            "❌ Mahsulot qo‘shishda xatolik.\n\n"
             "Ehtimol bu ID allaqachon mavjud."
         )
 
@@ -409,8 +533,9 @@ async def product_stock_received(
     await state.clear()
 
     await message.answer(
-        "✅ <b>Mahsulot muvaffaqiyatli qo‘shildi!</b>\n\n"
+        "✅ <b>MAHSULOT QO‘SHILDI!</b>\n\n"
         f"📦 {data['name']}\n"
         f"💰 {data['price']:,} so‘m\n"
         f"📦 Qoldiq: {stock} dona"
     )
+```
