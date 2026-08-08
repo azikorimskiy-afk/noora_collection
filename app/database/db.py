@@ -530,36 +530,34 @@ def update_order_status(
 # ============================================================
 
 def get_statistics():
-    conn = get_connection()
+    """
+    Admin panel uchun statistika.
+    """
 
     try:
+        products = get_products()
+        customers = get_customers()
+        orders = get_orders()
 
-        products_count = conn.execute("""
-            SELECT COUNT(*)
-            FROM products
-        """).fetchone()["count"]
+        products_count = len(products)
+        customers_count = len(customers)
+        orders_count = len(orders)
 
-        customers_count = conn.execute("""
-            SELECT COUNT(*)
-            FROM customers
-        """).fetchone()["count"]
+        delivered_count = 0
+        total_revenue = 0
 
-        orders_count = conn.execute("""
-            SELECT COUNT(*)
-            FROM orders
-        """).fetchone()["count"]
+        for order in orders:
 
-        delivered_count = conn.execute("""
-            SELECT COUNT(*)
-            FROM orders
-            WHERE status = 'delivered'
-        """).fetchone()["count"]
+            status = order.get("status")
 
-        total_revenue = conn.execute("""
-            SELECT COALESCE(SUM(total), 0)
-            FROM orders
-            WHERE status = 'delivered'
-        """).fetchone()["coalesce"]
+            if status == "delivered":
+
+                delivered_count += 1
+
+                total = order.get("total", 0)
+
+                if total:
+                    total_revenue += int(total)
 
         return {
             "products": products_count,
@@ -569,5 +567,19 @@ def get_statistics():
             "revenue": total_revenue,
         }
 
+    except Exception as e:
+
+        print(
+            "❌ GET STATISTICS ERROR:",
+            repr(e),
+        )
+
+        return {
+            "products": 0,
+            "customers": 0,
+            "orders": 0,
+            "delivered": 0,
+            "revenue": 0,
+        }
     finally:
         conn.close()
