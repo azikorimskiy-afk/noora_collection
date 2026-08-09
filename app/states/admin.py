@@ -16,3 +16,19 @@ class EditProductState(StatesGroup):
     waiting_description = State()
     waiting_image = State()
     waiting_stock = State()
+
+
+class AddVariantState(StatesGroup):
+    waiting_color_name = State()
+    waiting_color_code = State()
+    waiting_image = State()
+    waiting_price = State()
+    waiting_stock = State()
+
+
+class EditVariantState(StatesGroup):
+    waiting_color_name = State()
+    waiting_color_code = State()
+    waiting_image = State()
+    waiting_price = State()
+    waiting_stock = State()
