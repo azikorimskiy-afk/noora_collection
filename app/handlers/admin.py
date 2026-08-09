@@ -762,8 +762,8 @@ async def product_variants(callback: CallbackQuery):
     variants = get_product_variants(pid)
     builder = InlineKeyboardBuilder()
     for v in variants:
-        builder.button(text=f"🎨 {v['color_name']} — {v['price']:,} so‘m ({v['stock']})", callback_data=f"variant:{v['id']}")
-    builder.button(text="➕ Rang qo‘shish", callback_data=f"add_variant:{pid}")
+        builder.button(text=f"🎨 {v['color_name']} — {v['price']:,} so‘m ({v['stock']})", callback_data=f"admin_variant:{v['id']}")
+    builder.button(text="➕ Rang qo‘shish", callback_data=f"admin_add_variant:{pid}")
     builder.button(text="⬅️ Orqaga", callback_data=f"admin_product:{pid}")
     builder.adjust(1)
     await callback.message.edit_text(
@@ -774,7 +774,7 @@ async def product_variants(callback: CallbackQuery):
     await callback.answer()
 
 
-@admin_router.callback_query(F.data.startswith("add_variant:"))
+@admin_router.callback_query(F.data.startswith("admin_add_variant:"))
 async def add_variant_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
         await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
@@ -848,7 +848,7 @@ async def variant_stock_received(message: Message, state: FSMContext):
     await message.answer(f"✅ <b>RANG QO‘SHILDI!</b>\n\n🎨 {data['color_name']}\n💰 {data['price']:,} so‘m\n📦 {stock} dona")
 
 
-@admin_router.callback_query(F.data.startswith("variant:"))
+@admin_router.callback_query(F.data.startswith("admin_variant:"))
 async def variant_detail(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
         await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
@@ -901,7 +901,7 @@ async def edit_variant_menu(callback: CallbackQuery):
     builder.button(text="🖼 Rasm", callback_data=f"edit_v_image:{vid}")
     builder.button(text="💰 Narx", callback_data=f"edit_v_price:{vid}")
     builder.button(text="📦 Qoldiq", callback_data=f"edit_v_stock:{vid}")
-    builder.button(text="⬅️ Orqaga", callback_data=f"variant:{vid}")
+    builder.button(text="⬅️ Orqaga", callback_data=f"admin_variant:{vid}")
     builder.adjust(1)
     await callback.message.edit_text(f"✏️ <b>{v['color_name']}</b>\n\nNimani o‘zgartirmoqchisiz?", reply_markup=builder.as_markup())
     await callback.answer()
