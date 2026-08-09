@@ -15,6 +15,7 @@ from app.states.order import OrderState
 from app.handlers.shop import get_cart
 from app.database.db import (
     get_product,
+    get_variant,
     save_customer,
     create_order,
     get_order,
@@ -39,8 +40,96 @@ def is_admin(user_id: int) -> bool:
 
     try:
         return user_id == int(admin_id)
-    except ValueError:
+
+    except (ValueError, TypeError):
         return False
+
+
+# ==================================================
+# CART ITEMNI MAHSULOTGA AYLANtirish
+# ==================================================
+
+def resolve_cart_item(product_id, quantity):
+    """
+    Savatchadagi item:
+        oddiy mahsulot:
+            tasbeh2
+
+        rangli variant:
+            variant:3
+
+    ko'rinishida bo'lishi mumkin.
+
+    Bu funksiya ikkalasini ham to'g'ri aniqlaydi.
+    """
+
+    if quantity <= 0:
+        return None
+
+    # ==================================================
+    # VARIANT
+    # ==================================================
+
+    if str(product_id).startswith("variant:"):
+
+        try:
+            variant_id = int(
+                str(product_id).split(":", 1)[1]
+            )
+
+        except (ValueError, IndexError):
+            return None
+
+        variant = get_variant(variant_id)
+
+        if not variant:
+            return None
+
+        product = get_product(
+            variant["product_id"]
+        )
+
+        if not product:
+            return None
+
+        subtotal = (
+            variant["price"] * quantity
+        )
+
+        return {
+            "product_id": variant["product_id"],
+            "variant_id": variant["id"],
+            "name": product["name"],
+            "color_name": variant["color_name"],
+            "price": variant["price"],
+            "quantity": quantity,
+            "subtotal": subtotal,
+            "stock": variant["stock"],
+        }
+
+    # ==================================================
+    # ODDIY MAHSULOT
+    # ==================================================
+
+    product = get_product(product_id)
+
+    if not product:
+        return None
+
+    subtotal = (
+        product["price"] * quantity
+    )
+
+    return {
+        "product_id": product_id,
+        "variant_id": None,
+        "name": product["name"],
+        "color_name": None,
+        "price": product["price"],
+        "quantity": quantity,
+        "subtotal": subtotal,
+        "stock": product["stock"],
+    }
 
 
 # ==================================================
@@ -53,7 +142,9 @@ async def checkout_handler(
     state: FSMContext,
 ):
 
-    cart = get_cart(callback.from_user.id)
+    cart = get_cart(
+        callback.from_user.id
+    )
 
     if not cart:
 
@@ -235,58 +326,67 @@ async def get_address(
         return
 
     # ==================================================
-    # MAHSULOTLARNI TEKSHIRISH
+    # CARTNI TEKSHIRISH
     # ==================================================
 
     total = 0
-
     items = []
 
-    for product_id, quantity in cart.items():
+    for cart_id, quantity in cart.items():
 
-        product = get_product(
-            product_id
+        if quantity <= 0:
+            continue
+
+        item = resolve_cart_item(
+            cart_id,
+            quantity
         )
 
-        if not product:
+        # ==================================================
+        # MAHSULOT / VARIANT TOPILMADI
+        # ==================================================
+
+        if not item:
 
             await message.answer(
-                f"❌ Mahsulot topilmadi: "
-                f"<code>{product_id}</code>"
+                "❌ Mahsulot yoki rang topilmadi.\n\n"
+                f"🆔 <code>{cart_id}</code>\n\n"
+                "Iltimos, savatchani yangilab, "
+                "mahsulotni qaytadan tanlang."
             )
 
             return
 
-        if quantity <= 0:
+        # ==================================================
+        # STOCK
+        # ==================================================
 
-            continue
+        if item["stock"] < quantity:
 
-        if product["stock"] < quantity:
+            color_text = ""
+
+            if item["color_name"]:
+                color_text = (
+                    f"\n🎨 Rang: {item['color_name']}"
+                )
 
             await message.answer(
                 "❌ <b>Omborda yetarli mahsulot yo‘q!</b>\n\n"
-                f"📦 {product['name']}\n"
+                f"📦 {item['name']}"
+                f"{color_text}\n"
                 f"🛒 Siz tanlagan: {quantity} dona\n"
-                f"📦 Omborda: {product['stock']} dona"
+                f"📦 Omborda: {item['stock']} dona"
             )
 
             return
 
-        subtotal = (
-            product["price"] * quantity
-        )
+        total += item["subtotal"]
 
-        total += subtotal
+        items.append(item)
 
-        items.append(
-            {
-                "product_id": product_id,
-                "name": product["name"],
-                "price": product["price"],
-                "quantity": quantity,
-                "subtotal": subtotal,
-            }
-        )
+    # ==================================================
+    # BO'SH CART
+    # ==================================================
 
     if not items:
 
@@ -299,7 +399,7 @@ async def get_address(
         return
 
     # ==================================================
-    # TASDIQLASH MATNI
+    # TASDIQLASH
     # ==================================================
 
     order_text = (
@@ -308,8 +408,16 @@ async def get_address(
 
     for item in items:
 
+        color_text = ""
+
+        if item["color_name"]:
+            color_text = (
+                f" 🎨 {item['color_name']}"
+            )
+
         order_text += (
-            f"📦 {item['name']} × "
+            f"📦 {item['name']}"
+            f"{color_text} × "
             f"{item['quantity']}\n"
             f"💰 {item['subtotal']:,} so‘m\n\n"
         )
@@ -321,7 +429,6 @@ async def get_address(
         f"📍 <b>Manzil:</b> {data['address']}"
     )
 
-    # Ma'lumotlarni keyingi callback uchun saqlaymiz
     await state.update_data(
         items=items,
         total=total,
@@ -415,31 +522,61 @@ async def confirm_order(
 
     for item in items:
 
-        product = get_product(
-            item["product_id"]
-        )
+        # Rangli variant
+        if item.get("variant_id"):
 
-        if not product:
-
-            await callback.answer(
-                "❌ Mahsulot topilmadi!",
-                show_alert=True,
+            variant = get_variant(
+                item["variant_id"]
             )
 
-            return
+            if not variant:
 
-        if product["stock"] < item["quantity"]:
+                await callback.answer(
+                    "❌ Tanlangan rang topilmadi!",
+                    show_alert=True,
+                )
 
-            await callback.answer(
-                f"❌ {product['name']} "
-                f"uchun qoldiq yetarli emas!",
-                show_alert=True,
+                return
+
+            if variant["stock"] < item["quantity"]:
+
+                await callback.answer(
+                    f"❌ {item['name']} — "
+                    f"{item['color_name']} rangida "
+                    f"qoldiq yetarli emas!",
+                    show_alert=True,
+                )
+
+                return
+
+        # Oddiy mahsulot
+        else:
+
+            product = get_product(
+                item["product_id"]
             )
 
-            return
+            if not product:
+
+                await callback.answer(
+                    "❌ Mahsulot topilmadi!",
+                    show_alert=True,
+                )
+
+                return
+
+            if product["stock"] < item["quantity"]:
+
+                await callback.answer(
+                    f"❌ {product['name']} "
+                    f"uchun qoldiq yetarli emas!",
+                    show_alert=True,
+                )
+
+                return
 
     # ==================================================
-    # CUSTOMER SAQLASH
+    # CUSTOMER
     # ==================================================
 
     try:
@@ -466,7 +603,7 @@ async def confirm_order(
         return
 
     # ==================================================
-    # ORDER YARATISH
+    # ORDER
     # ==================================================
 
     try:
@@ -495,7 +632,7 @@ async def confirm_order(
         return
 
     # ==================================================
-    # ADMIN BUYURTMA MATNI
+    # ADMIN TEXT
     # ==================================================
 
     order_text = (
@@ -505,8 +642,16 @@ async def confirm_order(
 
     for item in items:
 
+        color_text = ""
+
+        if item.get("color_name"):
+            color_text = (
+                f" 🎨 {item['color_name']}"
+            )
+
         order_text += (
-            f"📦 {item['name']} × "
+            f"📦 {item['name']}"
+            f"{color_text} × "
             f"{item['quantity']}\n"
             f"💰 {item['subtotal']:,} so‘m\n\n"
         )
@@ -522,7 +667,7 @@ async def confirm_order(
     )
 
     # ==================================================
-    # ADMIN TUGMALARI
+    # ADMIN BUTTONS
     # ==================================================
 
     builder = InlineKeyboardBuilder()
@@ -550,7 +695,7 @@ async def confirm_order(
     builder.adjust(1)
 
     # ==================================================
-    # ADMINGA YUBORISH
+    # ADMIN
     # ==================================================
 
     try:
@@ -568,9 +713,6 @@ async def confirm_order(
             repr(e)
         )
 
-        # Admin xabariga yuborib bo'lmasa,
-        # buyurtma bazada qoladi.
-
         await callback.answer(
             "⚠️ Buyurtma saqlandi, "
             "lekin adminga xabar yuborilmadi!",
@@ -583,7 +725,7 @@ async def confirm_order(
         return
 
     # ==================================================
-    # MIJOZGA JAVOB
+    # MIJOZGA MUVAFFAQIYAT
     # ==================================================
 
     await callback.message.edit_text(
@@ -640,9 +782,7 @@ async def admin_accept(
     bot: Bot,
 ):
 
-    if not is_admin(
-        callback.from_user.id
-    ):
+    if not is_admin(callback.from_user.id):
 
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
@@ -655,9 +795,7 @@ async def admin_accept(
         callback.data.split(":")[1]
     )
 
-    order = get_order(
-        order_id
-    )
+    order = get_order(order_id)
 
     if not order:
 
@@ -715,9 +853,7 @@ async def admin_delivery(
     bot: Bot,
 ):
 
-    if not is_admin(
-        callback.from_user.id
-    ):
+    if not is_admin(callback.from_user.id):
 
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
@@ -730,9 +866,7 @@ async def admin_delivery(
         callback.data.split(":")[1]
     )
 
-    order = get_order(
-        order_id
-    )
+    order = get_order(order_id)
 
     if not order:
 
@@ -790,9 +924,7 @@ async def admin_delivered(
     bot: Bot,
 ):
 
-    if not is_admin(
-        callback.from_user.id
-    ):
+    if not is_admin(callback.from_user.id):
 
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
@@ -805,9 +937,7 @@ async def admin_delivered(
         callback.data.split(":")[1]
     )
 
-    order = get_order(
-        order_id
-    )
+    order = get_order(order_id)
 
     if not order:
 
@@ -864,9 +994,7 @@ async def admin_cancel(
     bot: Bot,
 ):
 
-    if not is_admin(
-        callback.from_user.id
-    ):
+    if not is_admin(callback.from_user.id):
 
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
@@ -879,9 +1007,7 @@ async def admin_cancel(
         callback.data.split(":")[1]
     )
 
-    order = get_order(
-        order_id
-    )
+    order = get_order(order_id)
 
     if not order:
 
@@ -892,8 +1018,9 @@ async def admin_cancel(
 
         return
 
-    # Agar oldin bekor qilingan bo‘lsa,
-    # stockni yana qaytarmaymiz.
+    # ==================================================
+    # STOCKNI QAYTARISH
+    # ==================================================
 
     if order["status"] != "cancelled":
 
@@ -907,17 +1034,41 @@ async def admin_cancel(
 
             for item in items:
 
-                conn.execute(
-                    """
-                    UPDATE products
-                    SET stock = stock + ?
-                    WHERE product_id = ?
-                    """,
-                    (
-                        item["quantity"],
-                        item["product_id"],
+                # ==========================================
+                # VARIANT STOCK
+                # ==========================================
+
+                if item["variant_id"]:
+
+                    conn.execute(
+                        """
+                        UPDATE product_variants
+                        SET stock = stock + %s
+                        WHERE id = %s
+                        """,
+                        (
+                            item["quantity"],
+                            item["variant_id"],
+                        )
                     )
-                )
+
+                # ==========================================
+                # ODDIY PRODUCT STOCK
+                # ==========================================
+
+                else:
+
+                    conn.execute(
+                        """
+                        UPDATE products
+                        SET stock = stock + %s
+                        WHERE product_id = %s
+                        """,
+                        (
+                            item["quantity"],
+                            item["product_id"],
+                        )
+                    )
 
             conn.commit()
 
@@ -946,11 +1097,19 @@ async def admin_cancel(
             "cancelled",
         )
 
+    # ==================================================
+    # ADMIN STATUS
+    # ==================================================
+
     await callback.message.edit_text(
         callback.message.text
         + "\n\n"
         "🔴 <b>STATUS: BEKOR QILINDI</b>"
     )
+
+    # ==================================================
+    # MIJOZGA XABAR
+    # ==================================================
 
     try:
 
