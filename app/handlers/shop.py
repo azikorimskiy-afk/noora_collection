@@ -1,4 +1,4 @@
-
+```python
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart
@@ -7,6 +7,8 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app.database.db import (
     get_products,
     get_product,
+    get_product_variants,
+    get_variant,
 )
 
 shop_router = Router()
@@ -31,13 +33,11 @@ def get_cart(user_id: int):
 # ============================================================
 
 def products_dict():
-
     products = get_products()
 
     result = {}
 
     for product in products:
-
         result[product["product_id"]] = {
             "name": product["name"],
             "price": product["price"],
@@ -67,13 +67,9 @@ async def show_catalog(callback: CallbackQuery):
         )
 
         if callback.message.text is not None:
-
             await callback.message.edit_text(text)
-
         else:
-
             await callback.message.delete()
-
             await callback.message.answer(text)
 
         return
@@ -135,21 +131,30 @@ def cart_text(user_id: int):
 
     total = 0
 
-    for product_id, quantity in cart.items():
+    for cart_key, item in cart.items():
 
-        product = products.get(product_id)
+        product_id = item["product_id"]
+        quantity = item["quantity"]
+        price = item["price"]
+        name = item["name"]
+        color_name = item.get("color_name")
 
-        if not product:
-            continue
-
-        subtotal = product["price"] * quantity
+        subtotal = price * quantity
 
         total += subtotal
 
         text += (
-            f"📦 <b>{product['name']}</b>\n"
+            f"📦 <b>{name}</b>\n"
+        )
+
+        if color_name:
+            text += (
+                f"🎨 Rang: <b>{color_name}</b>\n"
+            )
+
+        text += (
             f"{quantity} dona × "
-            f"{product['price']:,} so‘m\n"
+            f"{price:,} so‘m\n"
             f"Jami: <b>{subtotal:,} so‘m</b>\n\n"
         )
 
@@ -168,20 +173,24 @@ def cart_keyboard(user_id: int):
 
     cart = get_cart(user_id)
 
-    products = products_dict()
-
     builder = InlineKeyboardBuilder()
 
-    for product_id, quantity in cart.items():
+    for cart_key, item in cart.items():
 
-        product = products.get(product_id)
+        name = item["name"]
+        quantity = item["quantity"]
+        color_name = item.get("color_name")
 
-        if not product:
-            continue
+        button_text = f"📦 {name}"
+
+        if color_name:
+            button_text += f" — {color_name}"
+
+        button_text += f" ({quantity} dona)"
 
         builder.button(
-            text=f"📦 {product['name']} — {quantity} dona",
-            callback_data=f"quantity:{product_id}",
+            text=button_text,
+            callback_data=f"quantity:{cart_key}",
         )
 
     if cart:
@@ -300,7 +309,90 @@ async def product_handler(callback: CallbackQuery):
 
         return
 
+    # --------------------------------------------------------
+    # VARIANTLARNI OLAMIZ
+    # --------------------------------------------------------
+
+    variants = get_product_variants(product_id)
+
     builder = InlineKeyboardBuilder()
+
+    # --------------------------------------------------------
+    # AGAR RANGLAR MAVJUD BO‘LSA
+    # --------------------------------------------------------
+
+    if variants:
+
+        text = (
+            f"<b>{product['name']}</b>\n\n"
+            f"📝 {product['description'] or 'Tavsif mavjud emas'}\n\n"
+            "🎨 <b>Rangni tanlang:</b>"
+        )
+
+        for variant in variants:
+
+            stock = variant["stock"]
+
+            if stock > 0:
+
+                button_text = (
+                    f"🎨 {variant['color_name']}"
+                )
+
+            else:
+
+                button_text = (
+                    f"❌ {variant['color_name']} — tugagan"
+                )
+
+            builder.button(
+                text=button_text,
+                callback_data=f"variant:{variant['id']}",
+            )
+
+        builder.button(
+            text="⬅️ Katalog",
+            callback_data="catalog",
+        )
+
+        builder.adjust(1)
+
+        # Mahsulotning asosiy rasmi chiqadi
+        if product["image"]:
+
+            await callback.message.delete()
+
+            await callback.message.answer_photo(
+                photo=product["image"],
+                caption=text,
+                reply_markup=builder.as_markup(),
+            )
+
+        else:
+
+            if callback.message.text is not None:
+
+                await callback.message.edit_text(
+                    text,
+                    reply_markup=builder.as_markup(),
+                )
+
+            else:
+
+                await callback.message.delete()
+
+                await callback.message.answer(
+                    text,
+                    reply_markup=builder.as_markup(),
+                )
+
+        await callback.answer()
+
+        return
+
+    # --------------------------------------------------------
+    # AGAR RANG MAVJUD BO‘LMASA
+    # --------------------------------------------------------
 
     if product["stock"] > 0:
 
@@ -364,7 +456,190 @@ async def product_handler(callback: CallbackQuery):
 
 
 # ============================================================
-# SAVATGA QO‘SHISH
+# VARIANT / RANGNI TANLASH
+# ============================================================
+
+@shop_router.callback_query(
+    F.data.startswith("variant:")
+)
+async def variant_handler(callback: CallbackQuery):
+
+    variant_id = int(
+        callback.data.split(":", 1)[1]
+    )
+
+    variant = get_variant(variant_id)
+
+    if not variant:
+
+        await callback.answer(
+            "❌ Rang topilmadi!",
+            show_alert=True,
+        )
+
+        return
+
+    stock = variant["stock"]
+
+    builder = InlineKeyboardBuilder()
+
+    if stock > 0:
+
+        builder.button(
+            text="🛒 Savatga qo‘shish",
+            callback_data=f"add_variant:{variant_id}",
+        )
+
+    else:
+
+        builder.button(
+            text="❌ Bu rang tugagan",
+            callback_data="nothing",
+        )
+
+    builder.button(
+        text="🎨 Boshqa rang",
+        callback_data=f"product:{variant['product_id']}",
+    )
+
+    builder.button(
+        text="⬅️ Katalog",
+        callback_data="catalog",
+    )
+
+    builder.adjust(1)
+
+    text = (
+        f"<b>{variant['color_name']}</b>\n\n"
+        f"💰 Narxi: "
+        f"<b>{variant['price']:,} so‘m</b>\n"
+        f"📦 Qoldiq: "
+        f"<b>{stock} dona</b>"
+    )
+
+    # --------------------------------------------------------
+    # RANGNING O‘Z RASMI
+    # --------------------------------------------------------
+
+    if variant["image"]:
+
+        await callback.message.delete()
+
+        await callback.message.answer_photo(
+            photo=variant["image"],
+            caption=text,
+            reply_markup=builder.as_markup(),
+        )
+
+    else:
+
+        if callback.message.text is not None:
+
+            await callback.message.edit_text(
+                text,
+                reply_markup=builder.as_markup(),
+            )
+
+        else:
+
+            await callback.message.delete()
+
+            await callback.message.answer(
+                text,
+                reply_markup=builder.as_markup(),
+            )
+
+    await callback.answer()
+
+
+# ============================================================
+# RANGLI MAHSULOTNI SAVATGA QO‘SHISH
+# ============================================================
+
+@shop_router.callback_query(
+    F.data.startswith("add_variant:")
+)
+async def add_variant_to_cart_handler(
+    callback: CallbackQuery,
+):
+
+    variant_id = int(
+        callback.data.split(":", 1)[1]
+    )
+
+    variant = get_variant(variant_id)
+
+    if not variant:
+
+        await callback.answer(
+            "❌ Rang topilmadi!",
+            show_alert=True,
+        )
+
+        return
+
+    stock = variant["stock"]
+
+    if stock <= 0:
+
+        await callback.answer(
+            "❌ Bu rang qolmagan!",
+            show_alert=True,
+        )
+
+        return
+
+    cart = get_cart(
+        callback.from_user.id
+    )
+
+    cart_key = f"variant:{variant_id}"
+
+    current_quantity = 0
+
+    if cart_key in cart:
+        current_quantity = cart[cart_key]["quantity"]
+
+    if current_quantity >= stock:
+
+        await callback.answer(
+            "❌ Omborda bundan ko‘p mahsulot yo‘q!",
+            show_alert=True,
+        )
+
+        return
+
+    product = get_product(
+        variant["product_id"]
+    )
+
+    if not product:
+
+        await callback.answer(
+            "❌ Mahsulot topilmadi!",
+            show_alert=True,
+        )
+
+        return
+
+    cart[cart_key] = {
+        "product_id": variant["product_id"],
+        "variant_id": variant_id,
+        "name": product["name"],
+        "color_name": variant["color_name"],
+        "price": variant["price"],
+        "quantity": current_quantity + 1,
+    }
+
+    await callback.answer(
+        "🛒 Rangli mahsulot savatga qo‘shildi!"
+    )
+
+    await show_cart(callback)
+
+
+# ============================================================
+# RANGSIZ MAHSULOTNI SAVATGA QO‘SHISH
 # ============================================================
 
 @shop_router.callback_query(
@@ -402,10 +677,12 @@ async def add_to_cart_handler(
         callback.from_user.id
     )
 
-    current_quantity = cart.get(
-        product_id,
-        0,
-    )
+    cart_key = f"product:{product_id}"
+
+    current_quantity = 0
+
+    if cart_key in cart:
+        current_quantity = cart[cart_key]["quantity"]
 
     if current_quantity >= stock:
 
@@ -416,7 +693,14 @@ async def add_to_cart_handler(
 
         return
 
-    cart[product_id] = current_quantity + 1
+    cart[cart_key] = {
+        "product_id": product_id,
+        "variant_id": None,
+        "name": product["name"],
+        "color_name": None,
+        "price": product["price"],
+        "quantity": current_quantity + 1,
+    }
 
     await callback.answer(
         "🛒 Savatchaga qo‘shildi!"
@@ -452,32 +736,73 @@ async def quantity_handler(
     callback: CallbackQuery,
 ):
 
-    product_id = callback.data.split(":", 1)[1]
+    cart_key = callback.data.split(":", 1)[1]
 
     cart = get_cart(
         callback.from_user.id
     )
 
-    quantity = cart.get(
-        product_id,
-        0,
-    )
+    item = cart.get(cart_key)
 
-    product = get_product(product_id)
-
-    if not product:
+    if not item:
 
         await callback.answer(
-            "❌ Mahsulot topilmadi!"
+            "❌ Mahsulot savatda topilmadi!",
+            show_alert=True,
         )
 
         return
+
+    product_id = item["product_id"]
+    variant_id = item.get("variant_id")
+
+    if variant_id:
+
+        variant = get_variant(
+            variant_id
+        )
+
+        if not variant:
+
+            cart.pop(cart_key, None)
+
+            await show_cart(callback)
+
+            await callback.answer(
+                "❌ Rang topilmadi!",
+                show_alert=True,
+            )
+
+            return
+
+        stock = variant["stock"]
+
+    else:
+
+        product = get_product(product_id)
+
+        if not product:
+
+            cart.pop(cart_key, None)
+
+            await show_cart(callback)
+
+            await callback.answer(
+                "❌ Mahsulot topilmadi!",
+                show_alert=True,
+            )
+
+            return
+
+        stock = product["stock"]
+
+    quantity = item["quantity"]
 
     builder = InlineKeyboardBuilder()
 
     builder.button(
         text="➖",
-        callback_data=f"minus:{product_id}",
+        callback_data=f"minus:{cart_key}",
     )
 
     builder.button(
@@ -487,12 +812,12 @@ async def quantity_handler(
 
     builder.button(
         text="➕",
-        callback_data=f"plus:{product_id}",
+        callback_data=f"plus:{cart_key}",
     )
 
     builder.button(
         text="🗑 O‘chirish",
-        callback_data=f"remove:{product_id}",
+        callback_data=f"remove:{cart_key}",
     )
 
     builder.button(
@@ -502,11 +827,28 @@ async def quantity_handler(
 
     builder.adjust(3, 1, 1)
 
-    await callback.message.edit_text(
-        f"📦 <b>{product['name']}</b>\n\n"
+    text = (
+        f"📦 <b>{item['name']}</b>\n"
+    )
+
+    if item.get("color_name"):
+        text += (
+            f"🎨 Rang: "
+            f"<b>{item['color_name']}</b>\n"
+        )
+
+    text += (
+        f"💰 Narx: "
+        f"<b>{item['price']:,} so‘m</b>\n"
         f"📊 Hozirgi miqdor: "
-        f"<b>{quantity} dona</b>\n\n"
-        "Miqdorni tanlang:",
+        f"<b>{quantity} dona</b>\n"
+        f"📦 Omborda: "
+        f"<b>{stock} dona</b>\n\n"
+        "Miqdorni tanlang:"
+    )
+
+    await callback.message.edit_text(
+        text,
         reply_markup=builder.as_markup(),
     )
 
@@ -524,28 +866,60 @@ async def plus_handler(
     callback: CallbackQuery,
 ):
 
-    product_id = callback.data.split(":", 1)[1]
+    cart_key = callback.data.split(":", 1)[1]
 
     cart = get_cart(
         callback.from_user.id
     )
 
-    product = get_product(product_id)
+    item = cart.get(cart_key)
 
-    if not product:
+    if not item:
 
         await callback.answer(
-            "❌ Mahsulot topilmadi!"
+            "❌ Mahsulot topilmadi!",
+            show_alert=True,
         )
 
         return
 
-    current = cart.get(
-        product_id,
-        0,
-    )
+    if item.get("variant_id"):
 
-    if current >= product["stock"]:
+        variant = get_variant(
+            item["variant_id"]
+        )
+
+        if not variant:
+
+            await callback.answer(
+                "❌ Rang topilmadi!",
+                show_alert=True,
+            )
+
+            return
+
+        stock = variant["stock"]
+
+    else:
+
+        product = get_product(
+            item["product_id"]
+        )
+
+        if not product:
+
+            await callback.answer(
+                "❌ Mahsulot topilmadi!",
+                show_alert=True,
+            )
+
+            return
+
+        stock = product["stock"]
+
+    current = item["quantity"]
+
+    if current >= stock:
 
         await callback.answer(
             "❌ Ombordagi qoldiq tugadi!",
@@ -554,7 +928,7 @@ async def plus_handler(
 
         return
 
-    cart[product_id] = current + 1
+    item["quantity"] = current + 1
 
     await show_cart(callback)
 
@@ -574,27 +948,35 @@ async def minus_handler(
     callback: CallbackQuery,
 ):
 
-    product_id = callback.data.split(":", 1)[1]
+    cart_key = callback.data.split(":", 1)[1]
 
     cart = get_cart(
         callback.from_user.id
     )
 
-    quantity = cart.get(
-        product_id,
-        0,
-    )
+    item = cart.get(cart_key)
+
+    if not item:
+
+        await callback.answer(
+            "❌ Mahsulot topilmadi!",
+            show_alert=True,
+        )
+
+        return
+
+    quantity = item["quantity"]
 
     if quantity <= 1:
 
         cart.pop(
-            product_id,
+            cart_key,
             None,
         )
 
     else:
 
-        cart[product_id] = quantity - 1
+        item["quantity"] = quantity - 1
 
     await show_cart(callback)
 
@@ -614,14 +996,14 @@ async def remove_handler(
     callback: CallbackQuery,
 ):
 
-    product_id = callback.data.split(":", 1)[1]
+    cart_key = callback.data.split(":", 1)[1]
 
     cart = get_cart(
         callback.from_user.id
     )
 
     cart.pop(
-        product_id,
+        cart_key,
         None,
     )
 
@@ -664,3 +1046,4 @@ async def nothing_handler(
 ):
 
     await callback.answer()
+```
