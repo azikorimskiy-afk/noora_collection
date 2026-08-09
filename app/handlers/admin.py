@@ -1,4 +1,4 @@
-```python
+
 import os
 
 from aiogram import Router, F
@@ -2150,4 +2150,3 @@ async def admin_stats(
             "❌ Statistikani yuklashda xatolik!",
             show_alert=True,
         )
-```
