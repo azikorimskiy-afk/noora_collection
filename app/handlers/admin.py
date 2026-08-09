@@ -1310,7 +1310,44 @@ async def order_status_handler(
         f"Status: {status_names.get(status, status)}"
     )
 
-    await admin_order_detail(callback)
+    # Status callback data is order_status:<status>:<id>,
+    # so it cannot be passed directly to admin_order_detail().
+    # Re-open the order explicitly.
+    order = get_order(order_id)
+    if not order:
+        return
+
+    items = get_order_items(order_id)
+    text = f"ð¦ <b>BUYURTMA #{order['id']}</b>\n\n"
+
+    for item in items:
+        text += (
+            f"â¢ {item['product_name']} Ã {item['quantity']}\n"
+            f"  ð° {item['subtotal']:,} soâm\n\n"
+        )
+
+    text += (
+        f"ðµ <b>Jami:</b> {order['total']:,} soâm\n\n"
+        f"ð¤ <b>Ism:</b> {order['name']}\n"
+        f"ð <b>Telefon:</b> {order['phone']}\n"
+        f"ð <b>Manzil:</b> {order['address']}\n"
+        f"ð <b>Telegram ID:</b> {order['telegram_id']}\n\n"
+        f"ð <b>Status:</b> {order['status']}"
+    )
+
+    builder = InlineKeyboardBuilder()
+    builder.button(text="ð¢ Qabul qilish", callback_data=f"order_status:accepted:{order_id}")
+    builder.button(text="ð Yetkazilmoqda", callback_data=f"order_status:delivery:{order_id}")
+    builder.button(text="â Yetkazildi", callback_data=f"order_status:delivered:{order_id}")
+    builder.button(text="â Bekor qilish", callback_data=f"order_status:cancelled:{order_id}")
+    builder.button(text="â¬ï¸ Buyurtmalar", callback_data="admin_orders")
+    builder.adjust(1)
+
+    try:
+        await callback.message.edit_text(text, reply_markup=builder.as_markup())
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            raise
 
 
 # ============================================================
