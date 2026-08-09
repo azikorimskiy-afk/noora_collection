@@ -163,6 +163,69 @@ def init_db():
             )
         """)
 
+        # ====================================================
+        # ESKI BAZANI MIGRATSIYA QILISH
+        #
+        # Agar order_items oldin yaratilgan bo'lsa,
+        # CREATE TABLE IF NOT EXISTS uni o'zgartirmaydi.
+        #
+        # Shuning uchun kerakli ustunlarni alohida qo'shamiz.
+        # ====================================================
+
+        conn.execute("""
+            ALTER TABLE order_items
+            ADD COLUMN IF NOT EXISTS variant_id INTEGER
+        """)
+
+        conn.execute("""
+            ALTER TABLE order_items
+            ADD COLUMN IF NOT EXISTS color_name TEXT
+        """)
+
+        # ====================================================
+        # FOREIGN KEYNI TEKSHIRAMIZ
+        #
+        # Eski bazalarda variant_id mavjud bo'lsa ham
+        # foreign key bo'lmasligi mumkin.
+        #
+        # Yangi constraint qo'shishga harakat qilamiz.
+        # Mavjud bo'lsa xatoni e'tiborsiz qoldiramiz.
+        # ====================================================
+
+        try:
+
+            conn.execute("""
+                ALTER TABLE order_items
+                ADD CONSTRAINT order_items_variant_fk
+                FOREIGN KEY (variant_id)
+                REFERENCES product_variants(id)
+                ON DELETE SET NULL
+            """)
+
+        except psycopg.errors.DuplicateObject:
+
+            pass
+
+        # ====================================================
+        # STOCK USTUNLARINI NORMAL HOLATGA KELTIRISH
+        # ====================================================
+
+        conn.execute("""
+            UPDATE products
+            SET stock = 0
+            WHERE stock IS NULL
+        """)
+
+        conn.execute("""
+            UPDATE product_variants
+            SET stock = 0
+            WHERE stock IS NULL
+        """)
+
+        # ====================================================
+        # COMMIT
+        # ====================================================
+
         conn.commit()
 
         print("✅ PostgreSQL database tayyor!")
@@ -340,7 +403,7 @@ def delete_product(product_id):
 
 
 # ============================================================
-# VARIANTS
+# PRODUCT VARIANTS
 # ============================================================
 
 def get_product_variants(product_id):
@@ -395,6 +458,22 @@ def add_variant(
 
     try:
 
+        # Mahsulot mavjudligini tekshirish
+
+        product = conn.execute("""
+            SELECT product_id
+            FROM products
+            WHERE product_id = %s
+        """, (
+            product_id,
+        )).fetchone()
+
+        if not product:
+
+            raise ValueError(
+                f"Mahsulot topilmadi: {product_id}"
+            )
+
         cursor = conn.execute("""
             INSERT INTO product_variants
             (
@@ -406,7 +485,6 @@ def add_variant(
                 stock
             )
             VALUES (%s, %s, %s, %s, %s, %s)
-
             RETURNING id
         """, (
             product_id,
@@ -505,7 +583,7 @@ def delete_variant(variant_id):
 
 
 # ============================================================
-# CUSTOMER
+# CUSTOMERS
 # ============================================================
 
 def save_customer(
@@ -530,10 +608,12 @@ def save_customer(
             VALUES (%s, %s, %s, %s)
 
             ON CONFLICT (telegram_id)
-
             DO UPDATE SET
+
                 name = EXCLUDED.name,
+
                 phone = EXCLUDED.phone,
+
                 address = EXCLUDED.address
         """, (
             telegram_id,
@@ -595,11 +675,15 @@ def get_customers():
 # CREATE ORDER
 #
 # BU FUNKSIYA:
-# 1. order yaratadi
-# 2. stockni kamaytiradi
-# 3. variant bo‘lsa variant stockini kamaytiradi
-# 4. order_items yaratadi
-# 5. hammasini BITTA TRANSACTIONDA bajaradi
+#
+# 1. Order yaratadi
+# 2. Har bir itemni saqlaydi
+# 3. Variant bo'lsa variant stockini kamaytiradi
+# 4. Variant bo'lmasa product stockini kamaytiradi
+# 5. Hammasi bitta TRANSACTION ichida
+#
+# Agar biror mahsulotda xato bo'lsa:
+# hammasi ROLLBACK bo'ladi.
 # ============================================================
 
 def create_order(
@@ -630,7 +714,6 @@ def create_order(
                 status
             )
             VALUES (%s, %s, %s, %s, %s, %s)
-
             RETURNING id
         """, (
             telegram_id,
@@ -649,44 +732,56 @@ def create_order(
 
         for item in items:
 
+            product_id = item["product_id"]
+
             quantity = int(
                 item["quantity"]
             )
-
-            product_id = item["product_id"]
 
             variant_id = item.get(
                 "variant_id"
             )
 
-            # ================================================
-            # VARIANT STOCK
-            # ================================================
+            # ------------------------------------------------
+            # QUANTITY
+            # ------------------------------------------------
 
-            if variant_id:
+            if quantity <= 0:
+
+                raise ValueError(
+                    "Mahsulot miqdori noto'g'ri."
+                )
+
+            # =================================================
+            # VARIANT BOR
+            # =================================================
+
+            if variant_id is not None:
 
                 result = conn.execute("""
                     UPDATE product_variants
                     SET stock = stock - %s
                     WHERE id = %s
+                    AND product_id = %s
                     AND stock >= %s
-
                     RETURNING stock
                 """, (
                     quantity,
                     variant_id,
+                    product_id,
                     quantity,
                 )).fetchone()
 
                 if not result:
 
                     raise ValueError(
-                        "Variant qoldig‘i yetarli emas."
+                        f"Variant qoldig'i yetarli emas: "
+                        f"{variant_id}"
                     )
 
-            # ================================================
-            # PRODUCT STOCK
-            # ================================================
+            # =================================================
+            # VARIANT YO'Q
+            # =================================================
 
             else:
 
@@ -695,7 +790,6 @@ def create_order(
                     SET stock = stock - %s
                     WHERE product_id = %s
                     AND stock >= %s
-
                     RETURNING stock
                 """, (
                     quantity,
@@ -706,12 +800,13 @@ def create_order(
                 if not result:
 
                     raise ValueError(
-                        "Mahsulot qoldig‘i yetarli emas."
+                        f"Mahsulot qoldig'i yetarli emas: "
+                        f"{product_id}"
                     )
 
-            # ================================================
+            # =================================================
             # ORDER ITEM
-            # ================================================
+            # =================================================
 
             conn.execute("""
                 INSERT INTO order_items
@@ -725,11 +820,7 @@ def create_order(
                     quantity,
                     subtotal
                 )
-                VALUES
-                (
-                    %s, %s, %s, %s,
-                    %s, %s, %s, %s
-                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 order_id,
                 product_id,
@@ -740,6 +831,10 @@ def create_order(
                 quantity,
                 item["subtotal"],
             ))
+
+        # ====================================================
+        # COMMIT
+        # ====================================================
 
         conn.commit()
 
@@ -757,7 +852,7 @@ def create_order(
 
 
 # ============================================================
-# ORDER
+# GET ORDER
 # ============================================================
 
 def get_order(order_id):
@@ -779,6 +874,10 @@ def get_order(order_id):
         conn.close()
 
 
+# ============================================================
+# GET ORDER ITEMS
+# ============================================================
+
 def get_order_items(order_id):
 
     conn = get_connection()
@@ -799,6 +898,10 @@ def get_order_items(order_id):
         conn.close()
 
 
+# ============================================================
+# GET ALL ORDERS
+# ============================================================
+
 def get_orders():
 
     conn = get_connection()
@@ -815,6 +918,10 @@ def get_orders():
 
         conn.close()
 
+
+# ============================================================
+# GET USER ORDERS
+# ============================================================
 
 def get_user_orders(telegram_id):
 
@@ -837,7 +944,7 @@ def get_user_orders(telegram_id):
 
 
 # ============================================================
-# UPDATE STATUS
+# UPDATE ORDER STATUS
 # ============================================================
 
 def update_order_status(
@@ -874,23 +981,28 @@ def update_order_status(
 # ============================================================
 # CANCEL ORDER + RESTORE STOCK
 #
-# JUDA MUHIM:
-# Variant bo‘lsa:
-#     product_variants.stock
+# MUHIM:
 #
-# Oddiy mahsulot bo‘lsa:
-#     products.stock
+# variant_id mavjud bo'lsa:
+#     product_variants.stock qaytadi
 #
-# Ikkinchi marta cancel qilinsa stock QAYTA QO‘SHILMAYDI.
+# variant_id yo'q bo'lsa:
+#     products.stock qaytadi
+#
+# Barchasi bitta transaction ichida.
 # ============================================================
 
-def cancel_order_and_restore_stock(
+def cancel_order(
     order_id,
 ):
 
     conn = get_connection()
 
     try:
+
+        # ====================================================
+        # ORDER
+        # ====================================================
 
         order = conn.execute("""
             SELECT *
@@ -904,12 +1016,12 @@ def cancel_order_and_restore_stock(
         if not order:
 
             raise ValueError(
-                "Buyurtma topilmadi."
+                f"Buyurtma topilmadi: {order_id}"
             )
 
-        # ================================================
-        # ALLAQACHON CANCEL BO‘LGAN
-        # ================================================
+        # ====================================================
+        # ALLAQACHON CANCEL QILINGAN
+        # ====================================================
 
         if order["status"] == "cancelled":
 
@@ -917,9 +1029,9 @@ def cancel_order_and_restore_stock(
 
             return False
 
-        # ================================================
+        # ====================================================
         # ORDER ITEMS
-        # ================================================
+        # ====================================================
 
         items = conn.execute("""
             SELECT *
@@ -930,21 +1042,25 @@ def cancel_order_and_restore_stock(
             order_id,
         )).fetchall()
 
-        # ================================================
+        # ====================================================
         # STOCKNI QAYTARISH
-        # ================================================
+        # ====================================================
 
         for item in items:
 
-            quantity = item["quantity"]
+            quantity = int(
+                item["quantity"]
+            )
 
-            variant_id = item["variant_id"]
+            variant_id = item.get(
+                "variant_id"
+            )
 
-            # ============================================
+            # ------------------------------------------------
             # VARIANT
-            # ============================================
+            # ------------------------------------------------
 
-            if variant_id:
+            if variant_id is not None:
 
                 conn.execute("""
                     UPDATE product_variants
@@ -955,9 +1071,9 @@ def cancel_order_and_restore_stock(
                     variant_id,
                 ))
 
-            # ============================================
+            # ------------------------------------------------
             # ODDIY PRODUCT
-            # ============================================
+            # ------------------------------------------------
 
             else:
 
@@ -970,9 +1086,9 @@ def cancel_order_and_restore_stock(
                     item["product_id"],
                 ))
 
-        # ================================================
+        # ====================================================
         # STATUS
-        # ================================================
+        # ====================================================
 
         conn.execute("""
             UPDATE orders
@@ -1033,9 +1149,7 @@ def get_statistics():
                 SUM(total),
                 0
             ) AS revenue
-
             FROM orders
-
             WHERE status = 'delivered'
         """).fetchone()["revenue"]
 
