@@ -32,9 +32,7 @@ from app.database.db import (
     get_statistics,
 )
 
-
 admin_router = Router()
-
 
 # ============================================================
 # ADMIN TEKSHIRISH
@@ -51,7 +49,6 @@ def is_admin(user_id: int) -> bool:
         return user_id == int(admin_id)
     except (ValueError, TypeError):
         return False
-
 
 # ============================================================
 # ADMIN PANEL KEYBOARD
@@ -85,7 +82,6 @@ def admin_keyboard():
 
     return builder.as_markup()
 
-
 # ============================================================
 # ADMIN PANEL
 # ============================================================
@@ -106,7 +102,6 @@ async def admin_panel(message: Message):
         "Kerakli boâlimni tanlang:",
         reply_markup=admin_keyboard(),
     )
-
 
 # ============================================================
 # ADMIN ORQAGA
@@ -131,7 +126,6 @@ async def admin_back(callback: CallbackQuery):
     )
 
     await callback.answer()
-
 
 # ============================================================
 # MAHSULOTLAR
@@ -195,7 +189,6 @@ async def admin_products(callback: CallbackQuery):
 
     await callback.answer()
 
-
 # ============================================================
 # MAHSULOT DETALI
 # ============================================================
@@ -235,7 +228,6 @@ async def admin_product(callback: CallbackQuery):
     )
     await callback.answer()
 
-
 # ============================================================
 # MAHSULOT QOâSHISH
 # ============================================================
@@ -271,7 +263,6 @@ async def admin_add_product(
     )
 
     await callback.answer()
-
 
 # ============================================================
 # 1 â PRODUCT ID
@@ -325,7 +316,6 @@ async def product_id_received(
         "Mahsulot nomini kiriting."
     )
 
-
 # ============================================================
 # 2 â NAME
 # ============================================================
@@ -370,7 +360,6 @@ async def product_name_received(
         "Masalan:\n"
         "<code>75000</code>"
     )
-
 
 # ============================================================
 # 3 â PRICE
@@ -427,7 +416,6 @@ async def product_price_received(
         "Mahsulot tavsifini yozing."
     )
 
-
 # ============================================================
 # 4 â DESCRIPTION
 # ============================================================
@@ -463,7 +451,6 @@ async def product_description_received(
         "Mahsulot rasmini yuboring."
     )
 
-
 # ============================================================
 # 5 â IMAGE
 # ============================================================
@@ -494,7 +481,6 @@ async def product_image_received(
         "<code>50</code>"
     )
 
-
 @admin_router.message(
     AddProductState.waiting_image
 )
@@ -503,7 +489,6 @@ async def product_image_error(message: Message):
     await message.answer(
         "â Iltimos, mahsulot rasmini yuboring."
     )
-
 
 # ============================================================
 # 6 â STOCK
@@ -584,7 +569,6 @@ async def product_stock_received(
         f"ð¦ Qoldiq: {stock} dona"
     )
 
-
 # ============================================================
 # MAHSULOTNI TAHRIRLASH
 # ============================================================
@@ -617,7 +601,6 @@ async def edit_product_menu(callback: CallbackQuery):
     )
     await callback.answer()
 
-
 async def _finish_product_edit(message: Message, state: FSMContext):
     data = await state.get_data()
     product = get_product(data["product_id"])
@@ -626,7 +609,6 @@ async def _finish_product_edit(message: Message, state: FSMContext):
         await message.answer("â Mahsulot topilmadi.")
         return None
     return product
-
 
 @admin_router.callback_query(F.data.startswith("edit_name:"))
 async def edit_name_start(callback: CallbackQuery, state: FSMContext):
@@ -638,7 +620,6 @@ async def edit_name_start(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer("ð Yangi mahsulot nomini kiriting:")
     await callback.answer()
 
-
 @admin_router.message(EditProductState.waiting_name)
 async def edit_name_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
@@ -649,7 +630,6 @@ async def edit_name_received(message: Message, state: FSMContext):
     update_product(product["product_id"], message.text.strip(), product["description"], product["image"], product["price"], product["stock"])
     await state.clear(); await message.answer("â Mahsulot nomi oâzgartirildi.")
 
-
 @admin_router.callback_query(F.data.startswith("edit_price:"))
 async def edit_price_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
@@ -659,7 +639,6 @@ async def edit_price_start(callback: CallbackQuery, state: FSMContext):
     await state.set_state(EditProductState.waiting_price)
     await callback.message.answer("ð° Yangi narxni kiriting (masalan: 75000):")
     await callback.answer()
-
 
 @admin_router.message(EditProductState.waiting_price)
 async def edit_price_received(message: Message, state: FSMContext):
@@ -674,7 +653,6 @@ async def edit_price_received(message: Message, state: FSMContext):
     update_product(product["product_id"], product["name"], product["description"], product["image"], price, product["stock"])
     await state.clear(); await message.answer(f"â Narx oâzgartirildi: <b>{price:,} soâm</b>")
 
-
 @admin_router.callback_query(F.data.startswith("edit_description:"))
 async def edit_description_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
@@ -684,7 +662,6 @@ async def edit_description_start(callback: CallbackQuery, state: FSMContext):
     await state.set_state(EditProductState.waiting_description)
     await callback.message.answer("ð Yangi tavsifni kiriting:")
     await callback.answer()
-
 
 @admin_router.message(EditProductState.waiting_description)
 async def edit_description_received(message: Message, state: FSMContext):
@@ -696,7 +673,6 @@ async def edit_description_received(message: Message, state: FSMContext):
     update_product(product["product_id"], product["name"], message.text.strip(), product["image"], product["price"], product["stock"])
     await state.clear(); await message.answer("â Tavsif oâzgartirildi.")
 
-
 @admin_router.callback_query(F.data.startswith("edit_image:"))
 async def edit_image_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
@@ -707,7 +683,6 @@ async def edit_image_start(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer("ð¼ Yangi mahsulot rasmini yuboring:")
     await callback.answer()
 
-
 @admin_router.message(EditProductState.waiting_image, F.photo)
 async def edit_image_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
@@ -716,11 +691,9 @@ async def edit_image_received(message: Message, state: FSMContext):
     update_product(product["product_id"], product["name"], product["description"], message.photo[-1].file_id, product["price"], product["stock"])
     await state.clear(); await message.answer("â Mahsulot rasmi oâzgartirildi.")
 
-
 @admin_router.message(EditProductState.waiting_image)
 async def edit_image_error(message: Message):
     await message.answer("â Iltimos, rasm yuboring.")
-
 
 @admin_router.callback_query(F.data.startswith("edit_stock:"))
 async def edit_stock_start(callback: CallbackQuery, state: FSMContext):
@@ -731,7 +704,6 @@ async def edit_stock_start(callback: CallbackQuery, state: FSMContext):
     await state.set_state(EditProductState.waiting_stock)
     await callback.message.answer("ð¦ Yangi qoldiqni kiriting:")
     await callback.answer()
-
 
 @admin_router.message(EditProductState.waiting_stock)
 async def edit_stock_received(message: Message, state: FSMContext):
@@ -745,7 +717,6 @@ async def edit_stock_received(message: Message, state: FSMContext):
     if not product: return
     update_product(product["product_id"], product["name"], product["description"], product["image"], product["price"], stock)
     await state.clear(); await message.answer(f"â Qoldiq oâzgartirildi: <b>{stock} dona</b>")
-
 
 # ============================================================
 # RANGLAR / VARIANTLAR
@@ -773,7 +744,6 @@ async def product_variants(callback: CallbackQuery):
     )
     await callback.answer()
 
-
 @admin_router.callback_query(F.data.startswith("admin_add_variant:"))
 async def add_variant_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
@@ -784,7 +754,6 @@ async def add_variant_start(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer("ð¨ Rang nomini kiriting (masalan: Qora):")
     await callback.answer()
 
-
 @admin_router.message(AddVariantState.waiting_color_name)
 async def variant_name_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
@@ -794,7 +763,6 @@ async def variant_name_received(message: Message, state: FSMContext):
     await state.set_state(AddVariantState.waiting_color_code)
     await message.answer("ð¢ Rang kodini kiriting (masalan: #000000). Kerak boâlmasa - yuboring:")
 
-
 @admin_router.message(AddVariantState.waiting_color_code)
 async def variant_code_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
@@ -803,7 +771,6 @@ async def variant_code_received(message: Message, state: FSMContext):
     await state.set_state(AddVariantState.waiting_image)
     await message.answer("ð¼ Shu rangning rasmini yuboring:")
 
-
 @admin_router.message(AddVariantState.waiting_image, F.photo)
 async def variant_image_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
@@ -811,11 +778,9 @@ async def variant_image_received(message: Message, state: FSMContext):
     await state.set_state(AddVariantState.waiting_price)
     await message.answer("ð° Shu rangning narxini kiriting:")
 
-
 @admin_router.message(AddVariantState.waiting_image)
 async def variant_image_error(message: Message):
     await message.answer("â Iltimos, rasm yuboring.")
-
 
 @admin_router.message(AddVariantState.waiting_price)
 async def variant_price_received(message: Message, state: FSMContext):
@@ -828,7 +793,6 @@ async def variant_price_received(message: Message, state: FSMContext):
     await state.update_data(price=price)
     await state.set_state(AddVariantState.waiting_stock)
     await message.answer("ð¦ Shu rangdan nechta dona bor?")
-
 
 @admin_router.message(AddVariantState.waiting_stock)
 async def variant_stock_received(message: Message, state: FSMContext):
@@ -846,7 +810,6 @@ async def variant_stock_received(message: Message, state: FSMContext):
         await state.clear(); await message.answer("â Rang qoâshishda xatolik yuz berdi."); return
     await state.clear()
     await message.answer(f"â <b>RANG QOâSHILDI!</b>\n\nð¨ {data['color_name']}\nð° {data['price']:,} soâm\nð¦ {stock} dona")
-
 
 @admin_router.callback_query(F.data.startswith("admin_variant:"))
 async def variant_detail(callback: CallbackQuery):
@@ -870,7 +833,6 @@ async def variant_detail(callback: CallbackQuery):
     )
     await callback.answer()
 
-
 @admin_router.callback_query(F.data.startswith("delete_variant:"))
 async def delete_variant_handler(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
@@ -886,7 +848,6 @@ async def delete_variant_handler(callback: CallbackQuery):
         await callback.answer("â Rangni oâchirishda xatolik!", show_alert=True); return
     await callback.message.edit_text("ð <b>Rang oâchirildi.</b>", reply_markup=InlineKeyboardBuilder().button(text="â¬ï¸ Ranglar", callback_data=f"product_variants:{v['product_id']}").as_markup())
     await callback.answer("ð Rang oâchirildi!")
-
 
 @admin_router.callback_query(F.data.startswith("edit_variant:"))
 async def edit_variant_menu(callback: CallbackQuery):
@@ -906,7 +867,6 @@ async def edit_variant_menu(callback: CallbackQuery):
     await callback.message.edit_text(f"âï¸ <b>{v['color_name']}</b>\n\nNimani oâzgartirmoqchisiz?", reply_markup=builder.as_markup())
     await callback.answer()
 
-
 @admin_router.callback_query(F.data.startswith("edit_v_name:"))
 async def edit_v_name_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
@@ -915,7 +875,6 @@ async def edit_v_name_start(callback: CallbackQuery, state: FSMContext):
     if not v: await callback.answer("â Rang topilmadi!", show_alert=True); return
     await state.clear(); await state.update_data(variant_id=vid); await state.set_state(EditVariantState.waiting_color_name)
     await callback.message.answer("ð¨ Yangi rang nomini kiriting:"); await callback.answer()
-
 
 @admin_router.message(EditVariantState.waiting_color_name)
 async def edit_v_name_received(message: Message, state: FSMContext):
@@ -926,13 +885,11 @@ async def edit_v_name_received(message: Message, state: FSMContext):
     update_variant(data["variant_id"], message.text.strip(), v["color_code"], v["image"], v["price"], v["stock"])
     await state.clear(); await message.answer("â Rang nomi oâzgartirildi.")
 
-
 @admin_router.callback_query(F.data.startswith("edit_v_code:"))
 async def edit_v_code_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id): await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     vid = int(callback.data.split(":", 1)[1]); await state.clear(); await state.update_data(variant_id=vid); await state.set_state(EditVariantState.waiting_color_code)
     await callback.message.answer("ð¢ Yangi rang kodini kiriting. Oâchirish uchun - yuboring:"); await callback.answer()
-
 
 @admin_router.message(EditVariantState.waiting_color_code)
 async def edit_v_code_received(message: Message, state: FSMContext):
@@ -943,13 +900,11 @@ async def edit_v_code_received(message: Message, state: FSMContext):
     update_variant(data["variant_id"], v["color_name"], None if code == "-" else code, v["image"], v["price"], v["stock"])
     await state.clear(); await message.answer("â Rang kodi oâzgartirildi.")
 
-
 @admin_router.callback_query(F.data.startswith("edit_v_image:"))
 async def edit_v_image_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id): await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     vid = int(callback.data.split(":", 1)[1]); await state.clear(); await state.update_data(variant_id=vid); await state.set_state(EditVariantState.waiting_image)
     await callback.message.answer("ð¼ Yangi rang rasmini yuboring:"); await callback.answer()
-
 
 @admin_router.message(EditVariantState.waiting_image, F.photo)
 async def edit_v_image_received(message: Message, state: FSMContext):
@@ -959,18 +914,15 @@ async def edit_v_image_received(message: Message, state: FSMContext):
     update_variant(data["variant_id"], v["color_name"], v["color_code"], message.photo[-1].file_id, v["price"], v["stock"])
     await state.clear(); await message.answer("â Rang rasmi oâzgartirildi.")
 
-
 @admin_router.message(EditVariantState.waiting_image)
 async def edit_v_image_error(message: Message):
     await message.answer("â Iltimos, rasm yuboring.")
-
 
 @admin_router.callback_query(F.data.startswith("edit_v_price:"))
 async def edit_v_price_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id): await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     vid = int(callback.data.split(":", 1)[1]); await state.clear(); await state.update_data(variant_id=vid); await state.set_state(EditVariantState.waiting_price)
     await callback.message.answer("ð° Yangi narxni kiriting:"); await callback.answer()
-
 
 @admin_router.message(EditVariantState.waiting_price)
 async def edit_v_price_received(message: Message, state: FSMContext):
@@ -983,13 +935,11 @@ async def edit_v_price_received(message: Message, state: FSMContext):
     update_variant(data["variant_id"], v["color_name"], v["color_code"], v["image"], price, v["stock"])
     await state.clear(); await message.answer(f"â Rang narxi oâzgartirildi: <b>{price:,} soâm</b>")
 
-
 @admin_router.callback_query(F.data.startswith("edit_v_stock:"))
 async def edit_v_stock_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id): await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     vid = int(callback.data.split(":", 1)[1]); await state.clear(); await state.update_data(variant_id=vid); await state.set_state(EditVariantState.waiting_stock)
     await callback.message.answer("ð¦ Yangi qoldiqni kiriting:"); await callback.answer()
-
 
 @admin_router.message(EditVariantState.waiting_stock)
 async def edit_v_stock_received(message: Message, state: FSMContext):
@@ -1001,7 +951,6 @@ async def edit_v_stock_received(message: Message, state: FSMContext):
     if not v: await state.clear(); await message.answer("â Rang topilmadi."); return
     update_variant(data["variant_id"], v["color_name"], v["color_code"], v["image"], v["price"], stock)
     await state.clear(); await message.answer(f"â Rang qoldigâi oâzgartirildi: <b>{stock} dona</b>")
-
 
 # ============================================================
 # MAHSULOTNI OâCHIRISH
@@ -1067,7 +1016,6 @@ async def delete_product_handler(
     await callback.answer(
         "ð Mahsulot oâchirildi!"
     )
-
 
 # ============================================================
 # BUYURTMALAR
@@ -1146,7 +1094,6 @@ async def admin_orders(
     )
 
     await callback.answer()
-
 
 # ============================================================
 # BUYURTMA DETALI
@@ -1253,7 +1200,6 @@ async def admin_order_detail(
 
     await callback.answer()
 
-
 # ============================================================
 # STATUS OâZGARTIRISH
 # ============================================================
@@ -1310,45 +1256,7 @@ async def order_status_handler(
         f"Status: {status_names.get(status, status)}"
     )
 
-    # Status callback data is order_status:<status>:<id>,
-    # so it cannot be passed directly to admin_order_detail().
-    # Re-open the order explicitly.
-    order = get_order(order_id)
-    if not order:
-        return
-
-    items = get_order_items(order_id)
-    text = f"ð¦ <b>BUYURTMA #{order['id']}</b>\n\n"
-
-    for item in items:
-        text += (
-            f"â¢ {item['product_name']} Ã {item['quantity']}\n"
-            f"  ð° {item['subtotal']:,} soâm\n\n"
-        )
-
-    text += (
-        f"ðµ <b>Jami:</b> {order['total']:,} soâm\n\n"
-        f"ð¤ <b>Ism:</b> {order['name']}\n"
-        f"ð <b>Telefon:</b> {order['phone']}\n"
-        f"ð <b>Manzil:</b> {order['address']}\n"
-        f"ð <b>Telegram ID:</b> {order['telegram_id']}\n\n"
-        f"ð <b>Status:</b> {order['status']}"
-    )
-
-    builder = InlineKeyboardBuilder()
-    builder.button(text="ð¢ Qabul qilish", callback_data=f"order_status:accepted:{order_id}")
-    builder.button(text="ð Yetkazilmoqda", callback_data=f"order_status:delivery:{order_id}")
-    builder.button(text="â Yetkazildi", callback_data=f"order_status:delivered:{order_id}")
-    builder.button(text="â Bekor qilish", callback_data=f"order_status:cancelled:{order_id}")
-    builder.button(text="â¬ï¸ Buyurtmalar", callback_data="admin_orders")
-    builder.adjust(1)
-
-    try:
-        await callback.message.edit_text(text, reply_markup=builder.as_markup())
-    except Exception as e:
-        if "message is not modified" not in str(e):
-            raise
-
+    await admin_order_detail(callback)
 
 # ============================================================
 # MIJOZLAR
@@ -1410,7 +1318,6 @@ async def admin_customers(
     )
 
     await callback.answer()
-
 
 # ==================================================
 # STATISTIKA
