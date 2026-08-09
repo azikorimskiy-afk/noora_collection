@@ -1,5 +1,4 @@
 import os
-
 import psycopg
 from psycopg.rows import dict_row
 
@@ -40,19 +39,12 @@ def init_db():
         conn.execute("""
             CREATE TABLE IF NOT EXISTS products (
                 id SERIAL PRIMARY KEY,
-
                 product_id TEXT UNIQUE NOT NULL,
-
                 name TEXT NOT NULL,
-
-                description TEXT,
-
+                description TEXT DEFAULT '',
                 image TEXT,
-
                 price BIGINT DEFAULT 0,
-
                 stock INTEGER DEFAULT 0,
-
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -68,17 +60,16 @@ def init_db():
                 product_id TEXT NOT NULL,
 
                 color_name TEXT NOT NULL,
-
                 color_code TEXT,
 
                 image TEXT,
 
-                price BIGINT NOT NULL,
-
-                stock INTEGER DEFAULT 0,
+                price BIGINT NOT NULL DEFAULT 0,
+                stock INTEGER NOT NULL DEFAULT 0,
 
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
+                CONSTRAINT fk_variant_product
                 FOREIGN KEY (product_id)
                 REFERENCES products(product_id)
                 ON DELETE CASCADE
@@ -96,9 +87,7 @@ def init_db():
                 telegram_id BIGINT UNIQUE NOT NULL,
 
                 name TEXT,
-
                 phone TEXT,
-
                 address TEXT,
 
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -116,14 +105,12 @@ def init_db():
                 telegram_id BIGINT NOT NULL,
 
                 name TEXT NOT NULL,
-
                 phone TEXT NOT NULL,
-
                 address TEXT NOT NULL,
 
-                total BIGINT NOT NULL,
+                total BIGINT NOT NULL DEFAULT 0,
 
-                status TEXT DEFAULT 'new',
+                status TEXT NOT NULL DEFAULT 'new',
 
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -140,23 +127,21 @@ def init_db():
                 order_id INTEGER NOT NULL,
 
                 product_id TEXT NOT NULL,
-
                 product_name TEXT NOT NULL,
 
                 variant_id INTEGER,
-
                 color_name TEXT,
 
-                price BIGINT NOT NULL,
+                price BIGINT NOT NULL DEFAULT 0,
+                quantity INTEGER NOT NULL DEFAULT 1,
+                subtotal BIGINT NOT NULL DEFAULT 0,
 
-                quantity INTEGER NOT NULL,
-
-                subtotal BIGINT NOT NULL,
-
+                CONSTRAINT fk_order_item_order
                 FOREIGN KEY (order_id)
                 REFERENCES orders(id)
                 ON DELETE CASCADE,
 
+                CONSTRAINT fk_order_item_variant
                 FOREIGN KEY (variant_id)
                 REFERENCES product_variants(id)
                 ON DELETE SET NULL
@@ -166,10 +151,8 @@ def init_db():
         # ====================================================
         # ESKI BAZANI MIGRATSIYA QILISH
         #
-        # Agar order_items oldin yaratilgan bo'lsa,
-        # CREATE TABLE IF NOT EXISTS uni o'zgartirmaydi.
-        #
-        # Shuning uchun kerakli ustunlarni alohida qo'shamiz.
+        # Agar order_items oldindan mavjud bo'lgan bo'lsa
+        # va variant_id/color_name bo'lmasa, qo'shamiz.
         # ====================================================
 
         conn.execute("""
@@ -183,48 +166,38 @@ def init_db():
         """)
 
         # ====================================================
-        # FOREIGN KEYNI TEKSHIRAMIZ
+        # FOREIGN KEY
         #
-        # Eski bazalarda variant_id mavjud bo'lsa ham
-        # foreign key bo'lmasligi mumkin.
-        #
-        # Yangi constraint qo'shishga harakat qilamiz.
-        # Mavjud bo'lsa xatoni e'tiborsiz qoldiramiz.
+        # Eski bazada FK bo'lmasligi mumkin.
+        # IF NOT EXISTS PostgreSQL FK uchun ishlamaydi,
+        # shuning uchun katalogdan tekshiramiz.
         # ====================================================
 
-        try:
+        fk_exists = conn.execute("""
+            SELECT 1
+            FROM information_schema.table_constraints
+            WHERE constraint_name = 'fk_order_item_variant'
+              AND table_name = 'order_items'
+        """).fetchone()
 
-            conn.execute("""
-                ALTER TABLE order_items
-                ADD CONSTRAINT order_items_variant_fk
-                FOREIGN KEY (variant_id)
-                REFERENCES product_variants(id)
-                ON DELETE SET NULL
-            """)
+        if not fk_exists:
 
-        except psycopg.errors.DuplicateObject:
+            try:
 
-            pass
+                conn.execute("""
+                    ALTER TABLE order_items
+                    ADD CONSTRAINT fk_order_item_variant
+                    FOREIGN KEY (variant_id)
+                    REFERENCES product_variants(id)
+                    ON DELETE SET NULL
+                """)
 
-        # ====================================================
-        # STOCK USTUNLARINI NORMAL HOLATGA KELTIRISH
-        # ====================================================
+            except Exception as e:
 
-        conn.execute("""
-            UPDATE products
-            SET stock = 0
-            WHERE stock IS NULL
-        """)
-
-        conn.execute("""
-            UPDATE product_variants
-            SET stock = 0
-            WHERE stock IS NULL
-        """)
-
-        # ====================================================
-        # COMMIT
-        # ====================================================
+                print(
+                    "⚠️ Variant FK qo‘shilmadi:",
+                    repr(e)
+                )
 
         conn.commit()
 
@@ -277,9 +250,7 @@ def get_product(product_id):
             SELECT *
             FROM products
             WHERE product_id = %s
-        """, (
-            product_id,
-        )).fetchone()
+        """, (product_id,)).fetchone()
 
     finally:
 
@@ -324,7 +295,6 @@ def add_product(
     except Exception:
 
         conn.rollback()
-
         raise
 
     finally:
@@ -368,7 +338,6 @@ def update_product(
     except Exception:
 
         conn.rollback()
-
         raise
 
     finally:
@@ -385,16 +354,13 @@ def delete_product(product_id):
         conn.execute("""
             DELETE FROM products
             WHERE product_id = %s
-        """, (
-            product_id,
-        ))
+        """, (product_id,))
 
         conn.commit()
 
     except Exception:
 
         conn.rollback()
-
         raise
 
     finally:
@@ -403,7 +369,7 @@ def delete_product(product_id):
 
 
 # ============================================================
-# PRODUCT VARIANTS
+# VARIANTS / COLORS
 # ============================================================
 
 def get_product_variants(product_id):
@@ -417,9 +383,7 @@ def get_product_variants(product_id):
             FROM product_variants
             WHERE product_id = %s
             ORDER BY id
-        """, (
-            product_id,
-        )).fetchall()
+        """, (product_id,)).fetchall()
 
     finally:
 
@@ -436,9 +400,7 @@ def get_variant(variant_id):
             SELECT *
             FROM product_variants
             WHERE id = %s
-        """, (
-            variant_id,
-        )).fetchone()
+        """, (variant_id,)).fetchone()
 
     finally:
 
@@ -458,15 +420,11 @@ def add_variant(
 
     try:
 
-        # Mahsulot mavjudligini tekshirish
-
         product = conn.execute("""
             SELECT product_id
             FROM products
             WHERE product_id = %s
-        """, (
-            product_id,
-        )).fetchone()
+        """, (product_id,)).fetchone()
 
         if not product:
 
@@ -504,7 +462,6 @@ def add_variant(
     except Exception:
 
         conn.rollback()
-
         raise
 
     finally:
@@ -548,7 +505,6 @@ def update_variant(
     except Exception:
 
         conn.rollback()
-
         raise
 
     finally:
@@ -565,16 +521,13 @@ def delete_variant(variant_id):
         conn.execute("""
             DELETE FROM product_variants
             WHERE id = %s
-        """, (
-            variant_id,
-        ))
+        """, (variant_id,))
 
         conn.commit()
 
     except Exception:
 
         conn.rollback()
-
         raise
 
     finally:
@@ -609,11 +562,8 @@ def save_customer(
 
             ON CONFLICT (telegram_id)
             DO UPDATE SET
-
                 name = EXCLUDED.name,
-
                 phone = EXCLUDED.phone,
-
                 address = EXCLUDED.address
         """, (
             telegram_id,
@@ -627,7 +577,6 @@ def save_customer(
     except Exception:
 
         conn.rollback()
-
         raise
 
     finally:
@@ -645,9 +594,7 @@ def get_customer(telegram_id):
             SELECT *
             FROM customers
             WHERE telegram_id = %s
-        """, (
-            telegram_id,
-        )).fetchone()
+        """, (telegram_id,)).fetchone()
 
     finally:
 
@@ -673,17 +620,6 @@ def get_customers():
 
 # ============================================================
 # CREATE ORDER
-#
-# BU FUNKSIYA:
-#
-# 1. Order yaratadi
-# 2. Har bir itemni saqlaydi
-# 3. Variant bo'lsa variant stockini kamaytiradi
-# 4. Variant bo'lmasa product stockini kamaytiradi
-# 5. Hammasi bitta TRANSACTION ichida
-#
-# Agar biror mahsulotda xato bo'lsa:
-# hammasi ROLLBACK bo'ladi.
 # ============================================================
 
 def create_order(
@@ -733,76 +669,98 @@ def create_order(
         for item in items:
 
             product_id = item["product_id"]
-
-            quantity = int(
-                item["quantity"]
-            )
-
-            variant_id = item.get(
-                "variant_id"
-            )
-
-            # ------------------------------------------------
-            # QUANTITY
-            # ------------------------------------------------
+            quantity = int(item["quantity"])
 
             if quantity <= 0:
+                continue
 
-                raise ValueError(
-                    "Mahsulot miqdori noto'g'ri."
-                )
+            variant_id = item.get("variant_id")
 
             # =================================================
-            # VARIANT BOR
+            # VARIANT
             # =================================================
 
-            if variant_id is not None:
+            if variant_id:
 
-                result = conn.execute("""
+                variant = conn.execute("""
+                    SELECT *
+                    FROM product_variants
+                    WHERE id = %s
+                    FOR UPDATE
+                """, (
+                    variant_id,
+                )).fetchone()
+
+                if not variant:
+
+                    raise ValueError(
+                        f"Variant topilmadi: {variant_id}"
+                    )
+
+                if variant["product_id"] != product_id:
+
+                    raise ValueError(
+                        "Variant mahsulotga tegishli emas."
+                    )
+
+                if variant["stock"] < quantity:
+
+                    raise ValueError(
+                        f"'{variant['color_name']}' "
+                        f"rangi uchun qoldiq yetarli emas. "
+                        f"Qoldiq: {variant['stock']}"
+                    )
+
+                # STOCK KAMAYTIRISH
+
+                conn.execute("""
                     UPDATE product_variants
                     SET stock = stock - %s
                     WHERE id = %s
-                    AND product_id = %s
-                    AND stock >= %s
-                    RETURNING stock
                 """, (
                     quantity,
                     variant_id,
-                    product_id,
-                    quantity,
-                )).fetchone()
-
-                if not result:
-
-                    raise ValueError(
-                        f"Variant qoldig'i yetarli emas: "
-                        f"{variant_id}"
-                    )
+                ))
 
             # =================================================
-            # VARIANT YO'Q
+            # ODDIY MAHSULOT
             # =================================================
 
             else:
 
-                result = conn.execute("""
+                product = conn.execute("""
+                    SELECT *
+                    FROM products
+                    WHERE product_id = %s
+                    FOR UPDATE
+                """, (
+                    product_id,
+                )).fetchone()
+
+                if not product:
+
+                    raise ValueError(
+                        f"Mahsulot topilmadi: {product_id}"
+                    )
+
+                if product["stock"] < quantity:
+
+                    raise ValueError(
+                        f"'{product['name']}' "
+                        f"uchun qoldiq yetarli emas. "
+                        f"Qoldiq: {product['stock']}"
+                    )
+
+                # STOCK KAMAYTIRISH
+
+                conn.execute("""
                     UPDATE products
                     SET stock = stock - %s
                     WHERE product_id = %s
-                    AND stock >= %s
-                    RETURNING stock
                 """, (
                     quantity,
                     product_id,
-                    quantity,
-                )).fetchone()
-
-                if not result:
-
-                    raise ValueError(
-                        f"Mahsulot qoldig'i yetarli emas: "
-                        f"{product_id}"
-                    )
+                ))
 
             # =================================================
             # ORDER ITEM
@@ -820,7 +778,17 @@ def create_order(
                     quantity,
                     subtotal
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES
+                (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s
+                )
             """, (
                 order_id,
                 product_id,
@@ -833,7 +801,7 @@ def create_order(
             ))
 
         # ====================================================
-        # COMMIT
+        # HAMMASI MUVAFFAQIYATLI
         # ====================================================
 
         conn.commit()
@@ -841,6 +809,9 @@ def create_order(
         return order_id
 
     except Exception:
+
+        # Buyurtma yoki stockdan biror joyda xato bo'lsa,
+        # HAMMASI rollback bo'ladi.
 
         conn.rollback()
 
@@ -865,9 +836,7 @@ def get_order(order_id):
             SELECT *
             FROM orders
             WHERE id = %s
-        """, (
-            order_id,
-        )).fetchone()
+        """, (order_id,)).fetchone()
 
     finally:
 
@@ -889,9 +858,7 @@ def get_order_items(order_id):
             FROM order_items
             WHERE order_id = %s
             ORDER BY id
-        """, (
-            order_id,
-        )).fetchall()
+        """, (order_id,)).fetchall()
 
     finally:
 
@@ -920,7 +887,7 @@ def get_orders():
 
 
 # ============================================================
-# GET USER ORDERS
+# USER ORDERS
 # ============================================================
 
 def get_user_orders(telegram_id):
@@ -970,7 +937,6 @@ def update_order_status(
     except Exception:
 
         conn.rollback()
-
         raise
 
     finally:
@@ -980,28 +946,16 @@ def update_order_status(
 
 # ============================================================
 # CANCEL ORDER + RESTORE STOCK
-#
-# MUHIM:
-#
-# variant_id mavjud bo'lsa:
-#     product_variants.stock qaytadi
-#
-# variant_id yo'q bo'lsa:
-#     products.stock qaytadi
-#
-# Barchasi bitta transaction ichida.
 # ============================================================
 
-def cancel_order(
-    order_id,
-):
+def cancel_order_and_restore_stock(order_id):
 
     conn = get_connection()
 
     try:
 
         # ====================================================
-        # ORDER
+        # ORDERNI LOCK QILAMIZ
         # ====================================================
 
         order = conn.execute("""
@@ -1020,12 +974,13 @@ def cancel_order(
             )
 
         # ====================================================
-        # ALLAQACHON CANCEL QILINGAN
+        # OLDIN BEKOR QILINGAN BO'LSA
+        # STOCKNI QAYTARMAYMIZ
         # ====================================================
 
         if order["status"] == "cancelled":
 
-            conn.rollback()
+            conn.commit()
 
             return False
 
@@ -1056,11 +1011,11 @@ def cancel_order(
                 "variant_id"
             )
 
-            # ------------------------------------------------
-            # VARIANT
-            # ------------------------------------------------
+            # ================================================
+            # RANG / VARIANT
+            # ================================================
 
-            if variant_id is not None:
+            if variant_id:
 
                 conn.execute("""
                     UPDATE product_variants
@@ -1071,9 +1026,9 @@ def cancel_order(
                     variant_id,
                 ))
 
-            # ------------------------------------------------
-            # ODDIY PRODUCT
-            # ------------------------------------------------
+            # ================================================
+            # ODDIY MAHSULOT
+            # ================================================
 
             else:
 
@@ -1145,10 +1100,7 @@ def get_statistics():
         """).fetchone()["count"]
 
         total_revenue = conn.execute("""
-            SELECT COALESCE(
-                SUM(total),
-                0
-            ) AS revenue
+            SELECT COALESCE(SUM(total), 0) AS revenue
             FROM orders
             WHERE status = 'delivered'
         """).fetchone()["revenue"]
