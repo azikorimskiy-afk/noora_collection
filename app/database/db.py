@@ -752,4 +752,4 @@ def get_statistics():
         raise
 
     finally:
-        conn.close()
+        conn.close() 
