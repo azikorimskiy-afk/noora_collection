@@ -1,7 +1,9 @@
 import os
 
 from aiogram import Router, F, Bot
+
 from aiogram.fsm.context import FSMContext
+
 from aiogram.types import (
     Message,
     CallbackQuery,
@@ -9,10 +11,13 @@ from aiogram.types import (
     KeyboardButton,
     ReplyKeyboardRemove,
 )
+
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.states.order import OrderState
+
 from app.handlers.shop import get_cart
+
 from app.database.db import (
     get_product,
     get_variant,
@@ -21,122 +26,47 @@ from app.database.db import (
     get_order,
     get_order_items,
     update_order_status,
-    get_connection,
+    cancel_order_and_restore_stock,
 )
+
 
 order_router = Router()
 
 
-# ==================================================
-# ADMIN TEKSHIRISH
-# ==================================================
+# ============================================================
+# ADMIN
+# ============================================================
 
-def is_admin(user_id: int) -> bool:
+def is_admin(
+    user_id: int,
+) -> bool:
 
-    admin_id = os.getenv("ADMIN_ID")
+    admin_id = os.getenv(
+        "ADMIN_ID"
+    )
 
     if not admin_id:
         return False
 
     try:
-        return user_id == int(admin_id)
 
-    except (ValueError, TypeError):
+        return (
+            user_id
+            == int(admin_id)
+        )
+
+    except ValueError:
+
         return False
 
 
-# ==================================================
-# CART ITEMNI MAHSULOTGA AYLANtirish
-# ==================================================
+# ============================================================
+# CHECKOUT
+# ============================================================
 
-def resolve_cart_item(product_id, quantity):
-    """
-    Savatchadagi item:
-        oddiy mahsulot:
-            tasbeh2
-
-        rangli variant:
-            variant:3
-
-    ko'rinishida bo'lishi mumkin.
-
-    Bu funksiya ikkalasini ham to'g'ri aniqlaydi.
-    """
-
-    if quantity <= 0:
-        return None
-
-    # ==================================================
-    # VARIANT
-    # ==================================================
-
-    if str(product_id).startswith("variant:"):
-
-        try:
-            variant_id = int(
-                str(product_id).split(":", 1)[1]
-            )
-
-        except (ValueError, IndexError):
-            return None
-
-        variant = get_variant(variant_id)
-
-        if not variant:
-            return None
-
-        product = get_product(
-            variant["product_id"]
-        )
-
-        if not product:
-            return None
-
-        subtotal = (
-            variant["price"] * quantity
-        )
-
-        return {
-            "product_id": variant["product_id"],
-            "variant_id": variant["id"],
-            "name": product["name"],
-            "color_name": variant["color_name"],
-            "price": variant["price"],
-            "quantity": quantity,
-            "subtotal": subtotal,
-            "stock": variant["stock"],
-        }
-
-    # ==================================================
-    # ODDIY MAHSULOT
-    # ==================================================
-
-    product = get_product(product_id)
-
-    if not product:
-        return None
-
-    subtotal = (
-        product["price"] * quantity
-    )
-
-    return {
-        "product_id": product_id,
-        "variant_id": None,
-        "name": product["name"],
-        "color_name": None,
-        "price": product["price"],
-        "quantity": quantity,
-        "subtotal": subtotal,
-        "stock": product["stock"],
-    }
-
-
-# ==================================================
-# BUYURTMA BOSHLASH
-# ==================================================
-
-@order_router.callback_query(F.data == "checkout")
+@order_router.callback_query(
+    F.data == "checkout"
+)
 async def checkout_handler(
     callback: CallbackQuery,
     state: FSMContext,
@@ -169,9 +99,9 @@ async def checkout_handler(
     await callback.answer()
 
 
-# ==================================================
-# ISM
-# ==================================================
+# ============================================================
+# NAME
+# ============================================================
 
 @order_router.message(
     OrderState.waiting_name
@@ -194,7 +124,8 @@ async def get_name(
     if len(name) < 2:
 
         await message.answer(
-            "❗ Iltimos, ismingizni to‘g‘ri kiriting."
+            "❗ Iltimos, ismingizni "
+            "to‘g‘ri kiriting."
         )
 
         return
@@ -203,17 +134,21 @@ async def get_name(
         name=name
     )
 
-    phone_keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(
-                    text="📞 Telefon raqamni yuborish",
-                    request_contact=True,
-                )
-            ]
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=True,
+    phone_keyboard = (
+        ReplyKeyboardMarkup(
+            keyboard=[
+                [
+                    KeyboardButton(
+                        text=(
+                            "📞 Telefon raqamni yuborish"
+                        ),
+                        request_contact=True,
+                    )
+                ]
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=True,
+        )
     )
 
     await state.set_state(
@@ -227,9 +162,9 @@ async def get_name(
     )
 
 
-# ==================================================
-# TELEFON
-# ==================================================
+# ============================================================
+# PHONE
+# ============================================================
 
 @order_router.message(
     OrderState.waiting_phone,
@@ -240,7 +175,9 @@ async def get_phone(
     state: FSMContext,
 ):
 
-    phone = message.contact.phone_number
+    phone = (
+        message.contact.phone_number
+    )
 
     await state.update_data(
         phone=phone
@@ -252,14 +189,15 @@ async def get_phone(
 
     await message.answer(
         "📍 <b>3/3</b>\n\n"
-        "Yetkazib berish manzilingizni yozing:",
+        "Yetkazib berish "
+        "manzilingizni yozing:",
         reply_markup=ReplyKeyboardRemove(),
     )
 
 
-# ==================================================
-# TELEFON XATOSI
-# ==================================================
+# ============================================================
+# PHONE ERROR
+# ============================================================
 
 @order_router.message(
     OrderState.waiting_phone
@@ -275,9 +213,9 @@ async def phone_error(
     )
 
 
-# ==================================================
-# MANZIL
-# ==================================================
+# ============================================================
+# ADDRESS
+# ============================================================
 
 @order_router.message(
     OrderState.waiting_address
@@ -300,7 +238,8 @@ async def get_address(
     if len(address) < 5:
 
         await message.answer(
-            "❗ Iltimos, to‘liq manzil kiriting."
+            "❗ Iltimos, to‘liq manzil "
+            "kiriting."
         )
 
         return
@@ -325,68 +264,173 @@ async def get_address(
 
         return
 
-    # ==================================================
-    # CARTNI TEKSHIRISH
-    # ==================================================
+    # ========================================================
+    # CART -> ORDER ITEMS
+    # ========================================================
 
     total = 0
+
     items = []
 
-    for cart_id, quantity in cart.items():
+    for cart_key, cart_item in cart.items():
+
+        product_id = cart_item.get(
+            "product_id"
+        )
+
+        variant_id = cart_item.get(
+            "variant_id"
+        )
+
+        quantity = int(
+            cart_item.get(
+                "quantity",
+                0
+            )
+        )
 
         if quantity <= 0:
             continue
 
-        item = resolve_cart_item(
-            cart_id,
-            quantity
-        )
+        # ====================================================
+        # VARIANT
+        # ====================================================
 
-        # ==================================================
-        # MAHSULOT / VARIANT TOPILMADI
-        # ==================================================
+        if variant_id:
 
-        if not item:
-
-            await message.answer(
-                "❌ Mahsulot yoki rang topilmadi.\n\n"
-                f"🆔 <code>{cart_id}</code>\n\n"
-                "Iltimos, savatchani yangilab, "
-                "mahsulotni qaytadan tanlang."
+            variant = get_variant(
+                variant_id
             )
 
-            return
+            if not variant:
 
-        # ==================================================
-        # STOCK
-        # ==================================================
-
-        if item["stock"] < quantity:
-
-            color_text = ""
-
-            if item["color_name"]:
-                color_text = (
-                    f"\n🎨 Rang: {item['color_name']}"
+                await message.answer(
+                    "❌ Tanlangan rang "
+                    "topilmadi.\n\n"
+                    "Iltimos, savatchani "
+                    "yangilab qaytadan "
+                    "tanlang."
                 )
 
-            await message.answer(
-                "❌ <b>Omborda yetarli mahsulot yo‘q!</b>\n\n"
-                f"📦 {item['name']}"
-                f"{color_text}\n"
-                f"🛒 Siz tanlagan: {quantity} dona\n"
-                f"📦 Omborda: {item['stock']} dona"
+                return
+
+            stock = int(
+                variant["stock"]
             )
 
-            return
+            if stock < quantity:
 
-        total += item["subtotal"]
+                await message.answer(
+                    "❌ <b>Omborda yetarli "
+                    "mahsulot yo‘q!</b>\n\n"
+                    f"📦 {cart_item['name']}\n"
+                    f"🎨 Rang: "
+                    f"{variant['color_name']}\n"
+                    f"🛒 Siz tanlagan: "
+                    f"{quantity} dona\n"
+                    f"📦 Omborda: "
+                    f"{stock} dona"
+                )
 
-        items.append(item)
+                return
 
-    # ==================================================
-    # BO'SH CART
-    # ==================================================
+            name = cart_item[
+                "name"
+            ]
+
+            color_name = (
+                variant["color_name"]
+            )
+
+            price = int(
+                variant["price"]
+            )
+
+        # ====================================================
+        # PRODUCT
+        # ====================================================
+
+        else:
+
+            product = get_product(
+                product_id
+            )
+
+            if not product:
+
+                await message.answer(
+                    "❌ Mahsulot topilmadi!\n\n"
+                    f"ID: "
+                    f"<code>{product_id}</code>"
+                )
+
+                return
+
+            stock = int(
+                product["stock"]
+            )
+
+            if stock < quantity:
+
+                await message.answer(
+                    "❌ <b>Omborda yetarli "
+                    "mahsulot yo‘q!</b>\n\n"
+                    f"📦 {product['name']}\n"
+                    f"🛒 Siz tanlagan: "
+                    f"{quantity} dona\n"
+                    f"📦 Omborda: "
+                    f"{stock} dona"
+                )
+
+                return
+
+            name = product[
+                "name"
+            ]
+
+            color_name = None
+
+            price = int(
+                product["price"]
+            )
+
+        # ====================================================
+        # SUBTOTAL
+        # ====================================================
+
+        subtotal = (
+            price * quantity
+        )
+
+        total += subtotal
+
+        items.append({
+
+            "product_id":
+                product_id,
+
+            "variant_id":
+                variant_id,
+
+            "name":
+                name,
+
+            "color_name":
+                color_name,
+
+            "price":
+                price,
+
+            "quantity":
+                quantity,
+
+            "subtotal":
+                subtotal,
+        })
+
+    # ========================================================
+    # EMPTY
+    # ========================================================
 
     if not items:
 
@@ -398,9 +442,9 @@ async def get_address(
 
         return
 
-    # ==================================================
-    # TASDIQLASH
-    # ==================================================
+    # ========================================================
+    # CONFIRM TEXT
+    # ========================================================
 
     order_text = (
         "📦 <b>BUYURTMA</b>\n\n"
@@ -408,31 +452,45 @@ async def get_address(
 
     for item in items:
 
-        color_text = ""
+        order_text += (
+            f"📦 <b>{item['name']}</b>\n"
+        )
 
-        if item["color_name"]:
-            color_text = (
-                f" 🎨 {item['color_name']}"
+        if item.get(
+            "color_name"
+        ):
+
+            order_text += (
+                f"🎨 Rang: "
+                f"<b>{item['color_name']}</b>\n"
             )
 
         order_text += (
-            f"📦 {item['name']}"
-            f"{color_text} × "
-            f"{item['quantity']}\n"
-            f"💰 {item['subtotal']:,} so‘m\n\n"
+            f"{item['quantity']} dona × "
+            f"{item['price']:,} so‘m\n"
+            f"Jami: "
+            f"<b>{item['subtotal']:,} so‘m</b>\n\n"
         )
 
     order_text += (
-        f"💵 <b>JAMI: {total:,} so‘m</b>\n\n"
-        f"👤 <b>Ism:</b> {data['name']}\n"
-        f"📞 <b>Telefon:</b> {data['phone']}\n"
-        f"📍 <b>Manzil:</b> {data['address']}"
+        f"💵 <b>JAMI: "
+        f"{total:,} so‘m</b>\n\n"
+        f"👤 <b>Ism:</b> "
+        f"{data['name']}\n"
+        f"📞 <b>Telefon:</b> "
+        f"{data['phone']}\n"
+        f"📍 <b>Manzil:</b> "
+        f"{data['address']}"
     )
 
     await state.update_data(
         items=items,
         total=total,
     )
+
+    # ========================================================
+    # BUTTONS
+    # ========================================================
 
     builder = InlineKeyboardBuilder()
 
@@ -454,9 +512,9 @@ async def get_address(
     )
 
 
-# ==================================================
-# BUYURTMANI TASDIQLASH
-# ==================================================
+# ============================================================
+# CONFIRM ORDER
+# ============================================================
 
 @order_router.callback_query(
     F.data == "confirm_order"
@@ -482,19 +540,6 @@ async def confirm_order(
 
         return
 
-    admin_id = os.getenv(
-        "ADMIN_ID"
-    )
-
-    if not admin_id:
-
-        await callback.answer(
-            "❌ ADMIN_ID sozlanmagan!",
-            show_alert=True,
-        )
-
-        return
-
     items = data.get(
         "items",
         []
@@ -508,7 +553,8 @@ async def confirm_order(
     if not items:
 
         await callback.answer(
-            "❌ Buyurtma ma'lumotlari topilmadi!",
+            "❌ Buyurtma ma'lumotlari "
+            "topilmadi!",
             show_alert=True,
         )
 
@@ -516,73 +562,29 @@ async def confirm_order(
 
         return
 
-    # ==================================================
-    # STOCKNI QAYTA TEKSHIRISH
-    # ==================================================
+    admin_id = os.getenv(
+        "ADMIN_ID"
+    )
 
-    for item in items:
+    if not admin_id:
 
-        # Rangli variant
-        if item.get("variant_id"):
+        await callback.answer(
+            "❌ ADMIN_ID sozlanmagan!",
+            show_alert=True,
+        )
 
-            variant = get_variant(
-                item["variant_id"]
-            )
+        return
 
-            if not variant:
-
-                await callback.answer(
-                    "❌ Tanlangan rang topilmadi!",
-                    show_alert=True,
-                )
-
-                return
-
-            if variant["stock"] < item["quantity"]:
-
-                await callback.answer(
-                    f"❌ {item['name']} — "
-                    f"{item['color_name']} rangida "
-                    f"qoldiq yetarli emas!",
-                    show_alert=True,
-                )
-
-                return
-
-        # Oddiy mahsulot
-        else:
-
-            product = get_product(
-                item["product_id"]
-            )
-
-            if not product:
-
-                await callback.answer(
-                    "❌ Mahsulot topilmadi!",
-                    show_alert=True,
-                )
-
-                return
-
-            if product["stock"] < item["quantity"]:
-
-                await callback.answer(
-                    f"❌ {product['name']} "
-                    f"uchun qoldiq yetarli emas!",
-                    show_alert=True,
-                )
-
-                return
-
-    # ==================================================
+    # ========================================================
     # CUSTOMER
-    # ==================================================
+    # ========================================================
 
     try:
 
         save_customer(
-            telegram_id=callback.from_user.id,
+            telegram_id=(
+                callback.from_user.id
+            ),
             name=data["name"],
             phone=data["phone"],
             address=data["address"],
@@ -596,26 +598,47 @@ async def confirm_order(
         )
 
         await callback.answer(
-            "❌ Mijoz ma'lumotlarini saqlashda xatolik!",
+            "❌ Mijoz ma'lumotlarini "
+            "saqlashda xatolik!",
             show_alert=True,
         )
 
         return
 
-    # ==================================================
-    # ORDER
-    # ==================================================
+    # ========================================================
+    # CREATE ORDER
+    #
+    # DB bu yerda stockni ATOMAR
+    # ravishda kamaytiradi.
+    # ========================================================
 
     try:
 
         order_id = create_order(
-            telegram_id=callback.from_user.id,
+            telegram_id=(
+                callback.from_user.id
+            ),
             name=data["name"],
             phone=data["phone"],
             address=data["address"],
             total=total,
             items=items,
         )
+
+    except ValueError as e:
+
+        print(
+            "❌ STOCK ERROR:",
+            repr(e)
+        )
+
+        await callback.answer(
+            "❌ Mahsulot qoldig‘i "
+            "yetarli emas!",
+            show_alert=True,
+        )
+
+        return
 
     except Exception as e:
 
@@ -625,15 +648,16 @@ async def confirm_order(
         )
 
         await callback.answer(
-            "❌ Buyurtmani saqlashda xatolik!",
+            "❌ Buyurtmani saqlashda "
+            "xatolik!",
             show_alert=True,
         )
 
         return
 
-    # ==================================================
+    # ========================================================
     # ADMIN TEXT
-    # ==================================================
+    # ========================================================
 
     order_text = (
         "🔔 <b>YANGI BUYURTMA!</b>\n\n"
@@ -642,68 +666,87 @@ async def confirm_order(
 
     for item in items:
 
-        color_text = ""
+        order_text += (
+            f"📦 {item['name']} × "
+            f"{item['quantity']}\n"
+        )
 
-        if item.get("color_name"):
-            color_text = (
-                f" 🎨 {item['color_name']}"
+        if item.get(
+            "color_name"
+        ):
+
+            order_text += (
+                f"🎨 Rang: "
+                f"{item['color_name']}\n"
             )
 
         order_text += (
-            f"📦 {item['name']}"
-            f"{color_text} × "
-            f"{item['quantity']}\n"
-            f"💰 {item['subtotal']:,} so‘m\n\n"
+            f"💰 "
+            f"{item['subtotal']:,} so‘m\n\n"
         )
 
     order_text += (
-        f"💵 <b>JAMI: {total:,} so‘m</b>\n\n"
-        f"👤 <b>Ism:</b> {data['name']}\n"
-        f"📞 <b>Telefon:</b> {data['phone']}\n"
-        f"📍 <b>Manzil:</b> {data['address']}\n\n"
+        f"💵 <b>JAMI: "
+        f"{total:,} so‘m</b>\n\n"
+        f"👤 <b>Ism:</b> "
+        f"{data['name']}\n"
+        f"📞 <b>Telefon:</b> "
+        f"{data['phone']}\n"
+        f"📍 <b>Manzil:</b> "
+        f"{data['address']}\n\n"
         f"🆔 <b>Telegram ID:</b> "
         f"{callback.from_user.id}\n\n"
-        f"🟡 <b>STATUS: YANGI</b>"
+        "🟡 <b>STATUS: YANGI</b>"
     )
 
-    # ==================================================
+    # ========================================================
     # ADMIN BUTTONS
-    # ==================================================
+    # ========================================================
 
     builder = InlineKeyboardBuilder()
 
     builder.button(
         text="✅ Qabul qilish",
-        callback_data=f"admin_accept:{order_id}",
+        callback_data=(
+            f"admin_accept:{order_id}"
+        ),
     )
 
     builder.button(
         text="🚚 Yetkazilmoqda",
-        callback_data=f"admin_delivery:{order_id}",
+        callback_data=(
+            f"admin_delivery:{order_id}"
+        ),
     )
 
     builder.button(
         text="✅ Yetkazildi",
-        callback_data=f"admin_delivered:{order_id}",
+        callback_data=(
+            f"admin_delivered:{order_id}"
+        ),
     )
 
     builder.button(
         text="❌ Bekor qilish",
-        callback_data=f"admin_cancel:{order_id}",
+        callback_data=(
+            f"admin_cancel:{order_id}"
+        ),
     )
 
     builder.adjust(1)
 
-    # ==================================================
-    # ADMIN
-    # ==================================================
+    # ========================================================
+    # ADMIN MESSAGE
+    # ========================================================
 
     try:
 
         await bot.send_message(
             chat_id=int(admin_id),
             text=order_text,
-            reply_markup=builder.as_markup(),
+            reply_markup=(
+                builder.as_markup()
+            ),
         )
 
     except Exception as e:
@@ -713,20 +756,33 @@ async def confirm_order(
             repr(e)
         )
 
+        # BUYURTMA ALLAQACHON DBGA SAQLANGAN.
+        # STOCK HAM KAMAYGAN.
+        # Admin xabar yuborilmagani uchun
+        # buyurtmani o‘chirib tashlamaymiz.
+
+        cart.clear()
+
+        await state.clear()
+
+        await callback.message.edit_text(
+            "⚠️ <b>BUYURTMA SAQLANDI!</b>\n\n"
+            f"🆔 Buyurtma №{order_id}\n"
+            f"💰 Jami: {total:,} so‘m\n\n"
+            "Operatorga xabar yuborishda "
+            "vaqtinchalik xatolik yuz berdi."
+        )
+
         await callback.answer(
-            "⚠️ Buyurtma saqlandi, "
-            "lekin adminga xabar yuborilmadi!",
+            "⚠️ Buyurtma saqlandi.",
             show_alert=True,
         )
 
-        cart.clear()
-        await state.clear()
-
         return
 
-    # ==================================================
-    # MIJOZGA MUVAFFAQIYAT
-    # ==================================================
+    # ========================================================
+    # CUSTOMER SUCCESS
+    # ========================================================
 
     await callback.message.edit_text(
         "✅ <b>BUYURTMANGIZ QABUL QILINDI!</b>\n\n"
@@ -745,9 +801,9 @@ async def confirm_order(
     )
 
 
-# ==================================================
-# BUYURTMANI BEKOR QILISH
-# ==================================================
+# ============================================================
+# CANCEL BEFORE CONFIRM
+# ============================================================
 
 @order_router.callback_query(
     F.data == "cancel_order"
@@ -770,19 +826,23 @@ async def cancel_order(
     )
 
 
-# ==================================================
-# ADMIN — QABUL QILISH
-# ==================================================
+# ============================================================
+# ADMIN ACCEPT
+# ============================================================
 
 @order_router.callback_query(
-    F.data.startswith("admin_accept:")
+    F.data.startswith(
+        "admin_accept:"
+    )
 )
 async def admin_accept(
     callback: CallbackQuery,
     bot: Bot,
 ):
 
-    if not is_admin(callback.from_user.id):
+    if not is_admin(
+        callback.from_user.id
+    ):
 
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
@@ -792,10 +852,14 @@ async def admin_accept(
         return
 
     order_id = int(
-        callback.data.split(":")[1]
+        callback.data.split(
+            ":"
+        )[1]
     )
 
-    order = get_order(order_id)
+    order = get_order(
+        order_id
+    )
 
     if not order:
 
@@ -814,15 +878,19 @@ async def admin_accept(
     await callback.message.edit_text(
         callback.message.text
         + "\n\n"
-        "🟢 <b>STATUS: QABUL QILINDI</b>"
+        "🟢 <b>STATUS: "
+        "QABUL QILINDI</b>"
     )
 
     try:
 
         await bot.send_message(
-            chat_id=order["telegram_id"],
+            chat_id=order[
+                "telegram_id"
+            ],
             text=(
-                "🟢 <b>BUYURTMANGIZ QABUL QILINDI!</b>\n\n"
+                "🟢 <b>BUYURTMANGIZ "
+                "QABUL QILINDI!</b>\n\n"
                 f"🆔 Buyurtma №{order_id}\n\n"
                 "Operatorimiz buyurtmangizni "
                 "qabul qildi."
@@ -841,19 +909,23 @@ async def admin_accept(
     )
 
 
-# ==================================================
-# ADMIN — YETKAZILMOQDA
-# ==================================================
+# ============================================================
+# ADMIN DELIVERY
+# ============================================================
 
 @order_router.callback_query(
-    F.data.startswith("admin_delivery:")
+    F.data.startswith(
+        "admin_delivery:"
+    )
 )
 async def admin_delivery(
     callback: CallbackQuery,
     bot: Bot,
 ):
 
-    if not is_admin(callback.from_user.id):
+    if not is_admin(
+        callback.from_user.id
+    ):
 
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
@@ -863,10 +935,14 @@ async def admin_delivery(
         return
 
     order_id = int(
-        callback.data.split(":")[1]
+        callback.data.split(
+            ":"
+        )[1]
     )
 
-    order = get_order(order_id)
+    order = get_order(
+        order_id
+    )
 
     if not order:
 
@@ -885,18 +961,23 @@ async def admin_delivery(
     await callback.message.edit_text(
         callback.message.text
         + "\n\n"
-        "🚚 <b>STATUS: YETKAZILMOQDA</b>"
+        "🚚 <b>STATUS: "
+        "YETKAZILMOQDA</b>"
     )
 
     try:
 
         await bot.send_message(
-            chat_id=order["telegram_id"],
+            chat_id=order[
+                "telegram_id"
+            ],
             text=(
-                "🚚 <b>BUYURTMANGIZ YO‘LDA!</b>\n\n"
+                "🚚 <b>BUYURTMANGIZ "
+                "YO‘LDA!</b>\n\n"
                 f"🆔 Buyurtma №{order_id}\n\n"
-                "Buyurtmangiz yetkazib berish "
-                "uchun yo‘lga chiqarildi."
+                "Buyurtmangiz yetkazib "
+                "berish uchun yo‘lga "
+                "chiqarildi."
             ),
         )
 
@@ -912,19 +993,23 @@ async def admin_delivery(
     )
 
 
-# ==================================================
-# ADMIN — YETKAZILDI
-# ==================================================
+# ============================================================
+# ADMIN DELIVERED
+# ============================================================
 
 @order_router.callback_query(
-    F.data.startswith("admin_delivered:")
+    F.data.startswith(
+        "admin_delivered:"
+    )
 )
 async def admin_delivered(
     callback: CallbackQuery,
     bot: Bot,
 ):
 
-    if not is_admin(callback.from_user.id):
+    if not is_admin(
+        callback.from_user.id
+    ):
 
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
@@ -934,10 +1019,14 @@ async def admin_delivered(
         return
 
     order_id = int(
-        callback.data.split(":")[1]
+        callback.data.split(
+            ":"
+        )[1]
     )
 
-    order = get_order(order_id)
+    order = get_order(
+        order_id
+    )
 
     if not order:
 
@@ -956,17 +1045,22 @@ async def admin_delivered(
     await callback.message.edit_text(
         callback.message.text
         + "\n\n"
-        "✅ <b>STATUS: YETKAZILDI</b>"
+        "✅ <b>STATUS: "
+        "YETKAZILDI</b>"
     )
 
     try:
 
         await bot.send_message(
-            chat_id=order["telegram_id"],
+            chat_id=order[
+                "telegram_id"
+            ],
             text=(
-                "✅ <b>BUYURTMANGIZ YETKAZILDI!</b>\n\n"
+                "✅ <b>BUYURTMANGIZ "
+                "YETKAZILDI!</b>\n\n"
                 f"🆔 Buyurtma №{order_id}\n\n"
-                "Xaridingiz uchun rahmat! ❤️"
+                "Xaridingiz uchun "
+                "rahmat! ❤️"
             ),
         )
 
@@ -982,19 +1076,31 @@ async def admin_delivered(
     )
 
 
-# ==================================================
-# ADMIN — BEKOR QILISH
-# ==================================================
+# ============================================================
+# ADMIN CANCEL
+#
+# STOCK QAYTADI:
+#
+# variant -> product_variants
+# oddiy   -> products
+#
+# Ikkinchi marta cancel qilinsa
+# stock yana qaytmaydi.
+# ============================================================
 
 @order_router.callback_query(
-    F.data.startswith("admin_cancel:")
+    F.data.startswith(
+        "admin_cancel:"
+    )
 )
 async def admin_cancel(
     callback: CallbackQuery,
     bot: Bot,
 ):
 
-    if not is_admin(callback.from_user.id):
+    if not is_admin(
+        callback.from_user.id
+    ):
 
         await callback.answer(
             "⛔ Ruxsat yo‘q!",
@@ -1004,10 +1110,14 @@ async def admin_cancel(
         return
 
     order_id = int(
-        callback.data.split(":")[1]
+        callback.data.split(
+            ":"
+        )[1]
     )
 
-    order = get_order(order_id)
+    order = get_order(
+        order_id
+    )
 
     if not order:
 
@@ -1018,108 +1128,71 @@ async def admin_cancel(
 
         return
 
-    # ==================================================
-    # STOCKNI QAYTARISH
-    # ==================================================
+    # ========================================================
+    # CANCEL + STOCK RESTORE
+    # ========================================================
 
-    if order["status"] != "cancelled":
+    try:
 
-        items = get_order_items(
-            order_id
+        restored = (
+            cancel_order_and_restore_stock(
+                order_id
+            )
         )
 
-        conn = get_connection()
+    except Exception as e:
 
-        try:
-
-            for item in items:
-
-                # ==========================================
-                # VARIANT STOCK
-                # ==========================================
-
-                if item["variant_id"]:
-
-                    conn.execute(
-                        """
-                        UPDATE product_variants
-                        SET stock = stock + %s
-                        WHERE id = %s
-                        """,
-                        (
-                            item["quantity"],
-                            item["variant_id"],
-                        )
-                    )
-
-                # ==========================================
-                # ODDIY PRODUCT STOCK
-                # ==========================================
-
-                else:
-
-                    conn.execute(
-                        """
-                        UPDATE products
-                        SET stock = stock + %s
-                        WHERE product_id = %s
-                        """,
-                        (
-                            item["quantity"],
-                            item["product_id"],
-                        )
-                    )
-
-            conn.commit()
-
-        except Exception as e:
-
-            conn.rollback()
-
-            print(
-                "❌ STOCK RESTORE ERROR:",
-                repr(e)
-            )
-
-            conn.close()
-
-            await callback.answer(
-                "❌ Stockni qaytarishda xatolik!",
-                show_alert=True,
-            )
-
-            return
-
-        conn.close()
-
-        update_order_status(
-            order_id,
-            "cancelled",
+        print(
+            "❌ CANCEL ORDER ERROR:",
+            repr(e)
         )
 
-    # ==================================================
-    # ADMIN STATUS
-    # ==================================================
+        await callback.answer(
+            "❌ Buyurtmani bekor qilishda "
+            "xatolik!",
+            show_alert=True,
+        )
+
+        return
+
+    if not restored:
+
+        await callback.answer(
+            "⚠️ Bu buyurtma allaqachon "
+            "bekor qilingan!",
+            show_alert=True,
+        )
+
+        return
+
+    # ========================================================
+    # ADMIN MESSAGE
+    # ========================================================
 
     await callback.message.edit_text(
         callback.message.text
         + "\n\n"
-        "🔴 <b>STATUS: BEKOR QILINDI</b>"
+        "🔴 <b>STATUS: "
+        "BEKOR QILINDI</b>"
     )
 
-    # ==================================================
-    # MIJOZGA XABAR
-    # ==================================================
+    # ========================================================
+    # CUSTOMER
+    # ========================================================
 
     try:
 
         await bot.send_message(
-            chat_id=order["telegram_id"],
+            chat_id=order[
+                "telegram_id"
+            ],
             text=(
-                "❌ <b>BUYURTMANGIZ BEKOR QILINDI.</b>\n\n"
+                "❌ <b>BUYURTMANGIZ "
+                "BEKOR QILINDI.</b>\n\n"
                 f"🆔 Buyurtma №{order_id}\n\n"
                 "Qo‘shimcha ma’lumot uchun "
-                "operator bilan bog‘lanishingiz mumkin."
+                "operator bilan "
+                "bog‘lanishingiz mumkin."
             ),
         )
 
