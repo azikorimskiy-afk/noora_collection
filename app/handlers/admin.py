@@ -62,22 +62,22 @@ def admin_keyboard():
     builder = InlineKeyboardBuilder()
 
     builder.button(
-        text="📦 Mahsulotlar",
+        text="ð¦ Mahsulotlar",
         callback_data="admin_products",
     )
 
     builder.button(
-        text="📋 Buyurtmalar",
+        text="ð Buyurtmalar",
         callback_data="admin_orders",
     )
 
     builder.button(
-        text="👥 Mijozlar",
+        text="ð¥ Mijozlar",
         callback_data="admin_customers",
     )
 
     builder.button(
-        text="📊 Statistika",
+        text="ð Statistika",
         callback_data="admin_stats",
     )
 
@@ -96,14 +96,14 @@ async def admin_panel(message: Message):
     if not is_admin(message.from_user.id):
 
         await message.answer(
-            "⛔ Sizda admin panelga kirish huquqi yo‘q."
+            "â Sizda admin panelga kirish huquqi yoâq."
         )
 
         return
 
     await message.answer(
-        "⚙️ <b>ADMIN PANEL</b>\n\n"
-        "Kerakli bo‘limni tanlang:",
+        "âï¸ <b>ADMIN PANEL</b>\n\n"
+        "Kerakli boâlimni tanlang:",
         reply_markup=admin_keyboard(),
     )
 
@@ -118,15 +118,15 @@ async def admin_back(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
 
         await callback.answer(
-            "⛔ Ruxsat yo‘q!",
+            "â Ruxsat yoâq!",
             show_alert=True,
         )
 
         return
 
     await callback.message.edit_text(
-        "⚙️ <b>ADMIN PANEL</b>\n\n"
-        "Kerakli bo‘limni tanlang:",
+        "âï¸ <b>ADMIN PANEL</b>\n\n"
+        "Kerakli boâlimni tanlang:",
         reply_markup=admin_keyboard(),
     )
 
@@ -143,7 +143,7 @@ async def admin_products(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
 
         await callback.answer(
-            "⛔ Ruxsat yo‘q!",
+            "â Ruxsat yoâq!",
             show_alert=True,
         )
 
@@ -163,12 +163,12 @@ async def admin_products(callback: CallbackQuery):
         )
 
     builder.button(
-        text="➕ Mahsulot qo‘shish",
+        text="â Mahsulot qoâshish",
         callback_data="admin_add_product",
     )
 
     builder.button(
-        text="⬅️ Admin panel",
+        text="â¬ï¸ Admin panel",
         callback_data="admin_back",
     )
 
@@ -177,15 +177,15 @@ async def admin_products(callback: CallbackQuery):
     if products:
 
         text = (
-            "📦 <b>MAHSULOTLAR</b>\n\n"
+            "ð¦ <b>MAHSULOTLAR</b>\n\n"
             "Mahsulotni tanlang:"
         )
 
     else:
 
         text = (
-            "📦 <b>MAHSULOTLAR</b>\n\n"
-            "Hozircha mahsulotlar yo‘q."
+            "ð¦ <b>MAHSULOTLAR</b>\n\n"
+            "Hozircha mahsulotlar yoâq."
         )
 
     await callback.message.edit_text(
@@ -206,38 +206,38 @@ async def admin_products(callback: CallbackQuery):
 async def admin_product(callback: CallbackQuery):
 
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True)
+        await callback.answer("â Ruxsat yoâq!", show_alert=True)
         return
 
     product_id = callback.data.split(":", 1)[1]
     product = get_product(product_id)
 
     if not product:
-        await callback.answer("❌ Mahsulot topilmadi!", show_alert=True)
+        await callback.answer("â Mahsulot topilmadi!", show_alert=True)
         return
 
     variants = get_product_variants(product_id)
     builder = InlineKeyboardBuilder()
 
-    builder.button(text="✏️ Tahrirlash", callback_data=f"edit_product:{product_id}")
-    builder.button(text="🎨 Ranglar", callback_data=f"product_variants:{product_id}")
-    builder.button(text="🗑 O‘chirish", callback_data=f"delete_product:{product_id}")
-    builder.button(text="⬅️ Mahsulotlar", callback_data="admin_products")
+    builder.button(text="âï¸ Tahrirlash", callback_data=f"edit_product:{product_id}")
+    builder.button(text="ð¨ Ranglar", callback_data=f"product_variants:{product_id}")
+    builder.button(text="ð Oâchirish", callback_data=f"delete_product:{product_id}")
+    builder.button(text="â¬ï¸ Mahsulotlar", callback_data="admin_products")
     builder.adjust(1)
 
     await callback.message.edit_text(
-        f"📦 <b>{product['name']}</b>\n\n"
-        f"📝 {product['description'] or '-'}\n\n"
-        f"💰 Narx: <b>{product['price']:,} so‘m</b>\n"
-        f"📦 Qoldiq: <b>{product['stock']} dona</b>\n"
-        f"🎨 Ranglar: <b>{len(variants)} ta</b>",
+        f"ð¦ <b>{product['name']}</b>\n\n"
+        f"ð {product['description'] or '-'}\n\n"
+        f"ð° Narx: <b>{product['price']:,} soâm</b>\n"
+        f"ð¦ Qoldiq: <b>{product['stock']} dona</b>\n"
+        f"ð¨ Ranglar: <b>{len(variants)} ta</b>",
         reply_markup=builder.as_markup(),
     )
     await callback.answer()
 
 
 # ============================================================
-# MAHSULOT QO‘SHISH
+# MAHSULOT QOâSHISH
 # ============================================================
 
 @admin_router.callback_query(
@@ -251,7 +251,7 @@ async def admin_add_product(
     if not is_admin(callback.from_user.id):
 
         await callback.answer(
-            "⛔ Ruxsat yo‘q!",
+            "â Ruxsat yoâq!",
             show_alert=True,
         )
 
@@ -264,7 +264,7 @@ async def admin_add_product(
     )
 
     await callback.message.answer(
-        "🆔 <b>1/6</b>\n\n"
+        "ð <b>1/6</b>\n\n"
         "Mahsulot ID sini kiriting.\n\n"
         "Masalan:\n"
         "<code>tasbeh2</code>"
@@ -274,7 +274,7 @@ async def admin_add_product(
 
 
 # ============================================================
-# 1 — PRODUCT ID
+# 1 â PRODUCT ID
 # ============================================================
 
 @admin_router.message(
@@ -288,7 +288,7 @@ async def product_id_received(
     if not message.text:
 
         await message.answer(
-            "❗ ID matn ko‘rinishida bo‘lishi kerak."
+            "â ID matn koârinishida boâlishi kerak."
         )
 
         return
@@ -298,7 +298,7 @@ async def product_id_received(
     if not product_id:
 
         await message.answer(
-            "❗ ID bo‘sh bo‘lmasligi kerak."
+            "â ID boâsh boâlmasligi kerak."
         )
 
         return
@@ -306,7 +306,7 @@ async def product_id_received(
     if get_product(product_id):
 
         await message.answer(
-            "❌ Bu ID allaqachon mavjud.\n\n"
+            "â Bu ID allaqachon mavjud.\n\n"
             "Boshqa ID kiriting."
         )
 
@@ -321,13 +321,13 @@ async def product_id_received(
     )
 
     await message.answer(
-        "📦 <b>2/6</b>\n\n"
+        "ð¦ <b>2/6</b>\n\n"
         "Mahsulot nomini kiriting."
     )
 
 
 # ============================================================
-# 2 — NAME
+# 2 â NAME
 # ============================================================
 
 @admin_router.message(
@@ -341,7 +341,7 @@ async def product_name_received(
     if not message.text:
 
         await message.answer(
-            "❗ Mahsulot nomini kiriting."
+            "â Mahsulot nomini kiriting."
         )
 
         return
@@ -351,7 +351,7 @@ async def product_name_received(
     if len(name) < 2:
 
         await message.answer(
-            "❗ Mahsulot nomi juda qisqa."
+            "â Mahsulot nomi juda qisqa."
         )
 
         return
@@ -365,7 +365,7 @@ async def product_name_received(
     )
 
     await message.answer(
-        "💰 <b>3/6</b>\n\n"
+        "ð° <b>3/6</b>\n\n"
         "Mahsulot narxini kiriting.\n\n"
         "Masalan:\n"
         "<code>75000</code>"
@@ -373,7 +373,7 @@ async def product_name_received(
 
 
 # ============================================================
-# 3 — PRICE
+# 3 â PRICE
 # ============================================================
 
 @admin_router.message(
@@ -387,7 +387,7 @@ async def product_price_received(
     if not message.text:
 
         await message.answer(
-            "❗ Narxni kiriting."
+            "â Narxni kiriting."
         )
 
         return
@@ -401,7 +401,7 @@ async def product_price_received(
     except ValueError:
 
         await message.answer(
-            "❗ Narxni faqat raqam bilan kiriting."
+            "â Narxni faqat raqam bilan kiriting."
         )
 
         return
@@ -409,7 +409,7 @@ async def product_price_received(
     if price <= 0:
 
         await message.answer(
-            "❗ Narx 0 dan katta bo‘lishi kerak."
+            "â Narx 0 dan katta boâlishi kerak."
         )
 
         return
@@ -423,13 +423,13 @@ async def product_price_received(
     )
 
     await message.answer(
-        "📝 <b>4/6</b>\n\n"
+        "ð <b>4/6</b>\n\n"
         "Mahsulot tavsifini yozing."
     )
 
 
 # ============================================================
-# 4 — DESCRIPTION
+# 4 â DESCRIPTION
 # ============================================================
 
 @admin_router.message(
@@ -443,7 +443,7 @@ async def product_description_received(
     if not message.text:
 
         await message.answer(
-            "❗ Tavsifni yozing."
+            "â Tavsifni yozing."
         )
 
         return
@@ -459,13 +459,13 @@ async def product_description_received(
     )
 
     await message.answer(
-        "🖼 <b>5/6</b>\n\n"
+        "ð¼ <b>5/6</b>\n\n"
         "Mahsulot rasmini yuboring."
     )
 
 
 # ============================================================
-# 5 — IMAGE
+# 5 â IMAGE
 # ============================================================
 
 @admin_router.message(
@@ -488,7 +488,7 @@ async def product_image_received(
     )
 
     await message.answer(
-        "📦 <b>6/6</b>\n\n"
+        "ð¦ <b>6/6</b>\n\n"
         "Qoldiqdagi mahsulot sonini kiriting.\n\n"
         "Masalan:\n"
         "<code>50</code>"
@@ -501,12 +501,12 @@ async def product_image_received(
 async def product_image_error(message: Message):
 
     await message.answer(
-        "❗ Iltimos, mahsulot rasmini yuboring."
+        "â Iltimos, mahsulot rasmini yuboring."
     )
 
 
 # ============================================================
-# 6 — STOCK
+# 6 â STOCK
 # ============================================================
 
 @admin_router.message(
@@ -520,7 +520,7 @@ async def product_stock_received(
     if not message.text:
 
         await message.answer(
-            "❗ Qoldiq sonini kiriting."
+            "â Qoldiq sonini kiriting."
         )
 
         return
@@ -534,7 +534,7 @@ async def product_stock_received(
     except ValueError:
 
         await message.answer(
-            "❗ Qoldiqni faqat raqam bilan kiriting."
+            "â Qoldiqni faqat raqam bilan kiriting."
         )
 
         return
@@ -542,7 +542,7 @@ async def product_stock_received(
     if stock < 0:
 
         await message.answer(
-            "❗ Qoldiq manfiy bo‘lishi mumkin emas."
+            "â Qoldiq manfiy boâlishi mumkin emas."
         )
 
         return
@@ -563,12 +563,12 @@ async def product_stock_received(
     except Exception as e:
 
         print(
-            "❌ PRODUCT ADD ERROR:",
+            "â PRODUCT ADD ERROR:",
             repr(e),
         )
 
         await message.answer(
-            "❌ Mahsulot qo‘shishda xatolik yuz berdi."
+            "â Mahsulot qoâshishda xatolik yuz berdi."
         )
 
         await state.clear()
@@ -578,10 +578,10 @@ async def product_stock_received(
     await state.clear()
 
     await message.answer(
-        "✅ <b>MAHSULOT QO‘SHILDI!</b>\n\n"
-        f"📦 {data['name']}\n"
-        f"💰 {data['price']:,} so‘m\n"
-        f"📦 Qoldiq: {stock} dona"
+        "â <b>MAHSULOT QOâSHILDI!</b>\n\n"
+        f"ð¦ {data['name']}\n"
+        f"ð° {data['price']:,} soâm\n"
+        f"ð¦ Qoldiq: {stock} dona"
     )
 
 
@@ -592,27 +592,27 @@ async def product_stock_received(
 @admin_router.callback_query(F.data.startswith("edit_product:"))
 async def edit_product_menu(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True)
+        await callback.answer("â Ruxsat yoâq!", show_alert=True)
         return
 
     product_id = callback.data.split(":", 1)[1]
     product = get_product(product_id)
     if not product:
-        await callback.answer("❌ Mahsulot topilmadi!", show_alert=True)
+        await callback.answer("â Mahsulot topilmadi!", show_alert=True)
         return
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="📝 Nom", callback_data=f"edit_name:{product_id}")
-    builder.button(text="💰 Narx", callback_data=f"edit_price:{product_id}")
-    builder.button(text="📄 Tavsif", callback_data=f"edit_description:{product_id}")
-    builder.button(text="🖼 Rasm", callback_data=f"edit_image:{product_id}")
-    builder.button(text="📦 Qoldiq", callback_data=f"edit_stock:{product_id}")
-    builder.button(text="🎨 Ranglar", callback_data=f"product_variants:{product_id}")
-    builder.button(text="⬅️ Orqaga", callback_data=f"admin_product:{product_id}")
+    builder.button(text="ð Nom", callback_data=f"edit_name:{product_id}")
+    builder.button(text="ð° Narx", callback_data=f"edit_price:{product_id}")
+    builder.button(text="ð Tavsif", callback_data=f"edit_description:{product_id}")
+    builder.button(text="ð¼ Rasm", callback_data=f"edit_image:{product_id}")
+    builder.button(text="ð¦ Qoldiq", callback_data=f"edit_stock:{product_id}")
+    builder.button(text="ð¨ Ranglar", callback_data=f"product_variants:{product_id}")
+    builder.button(text="â¬ï¸ Orqaga", callback_data=f"admin_product:{product_id}")
     builder.adjust(1)
 
     await callback.message.edit_text(
-        f"✏️ <b>{product['name']}</b>\n\nNimani o‘zgartirmoqchisiz?",
+        f"âï¸ <b>{product['name']}</b>\n\nNimani oâzgartirmoqchisiz?",
         reply_markup=builder.as_markup(),
     )
     await callback.answer()
@@ -623,7 +623,7 @@ async def _finish_product_edit(message: Message, state: FSMContext):
     product = get_product(data["product_id"])
     if not product:
         await state.clear()
-        await message.answer("❌ Mahsulot topilmadi.")
+        await message.answer("â Mahsulot topilmadi.")
         return None
     return product
 
@@ -631,11 +631,11 @@ async def _finish_product_edit(message: Message, state: FSMContext):
 @admin_router.callback_query(F.data.startswith("edit_name:"))
 async def edit_name_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+        await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     pid = callback.data.split(":", 1)[1]
     await state.clear(); await state.update_data(product_id=pid)
     await state.set_state(EditProductState.waiting_name)
-    await callback.message.answer("📝 Yangi mahsulot nomini kiriting:")
+    await callback.message.answer("ð Yangi mahsulot nomini kiriting:")
     await callback.answer()
 
 
@@ -643,21 +643,21 @@ async def edit_name_start(callback: CallbackQuery, state: FSMContext):
 async def edit_name_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
     if not message.text or len(message.text.strip()) < 2:
-        await message.answer("❗ Mahsulot nomini to‘g‘ri kiriting."); return
+        await message.answer("â Mahsulot nomini toâgâri kiriting."); return
     product = await _finish_product_edit(message, state)
     if not product: return
     update_product(product["product_id"], message.text.strip(), product["description"], product["image"], product["price"], product["stock"])
-    await state.clear(); await message.answer("✅ Mahsulot nomi o‘zgartirildi.")
+    await state.clear(); await message.answer("â Mahsulot nomi oâzgartirildi.")
 
 
 @admin_router.callback_query(F.data.startswith("edit_price:"))
 async def edit_price_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+        await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     pid = callback.data.split(":", 1)[1]
     await state.clear(); await state.update_data(product_id=pid)
     await state.set_state(EditProductState.waiting_price)
-    await callback.message.answer("💰 Yangi narxni kiriting (masalan: 75000):")
+    await callback.message.answer("ð° Yangi narxni kiriting (masalan: 75000):")
     await callback.answer()
 
 
@@ -666,23 +666,23 @@ async def edit_price_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
     try: price = int(message.text.replace(" ", ""))
     except (ValueError, AttributeError):
-        await message.answer("❗ Narxni faqat raqam bilan kiriting."); return
+        await message.answer("â Narxni faqat raqam bilan kiriting."); return
     if price <= 0:
-        await message.answer("❗ Narx 0 dan katta bo‘lishi kerak."); return
+        await message.answer("â Narx 0 dan katta boâlishi kerak."); return
     product = await _finish_product_edit(message, state)
     if not product: return
     update_product(product["product_id"], product["name"], product["description"], product["image"], price, product["stock"])
-    await state.clear(); await message.answer(f"✅ Narx o‘zgartirildi: <b>{price:,} so‘m</b>")
+    await state.clear(); await message.answer(f"â Narx oâzgartirildi: <b>{price:,} soâm</b>")
 
 
 @admin_router.callback_query(F.data.startswith("edit_description:"))
 async def edit_description_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+        await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     pid = callback.data.split(":", 1)[1]
     await state.clear(); await state.update_data(product_id=pid)
     await state.set_state(EditProductState.waiting_description)
-    await callback.message.answer("📄 Yangi tavsifni kiriting:")
+    await callback.message.answer("ð Yangi tavsifni kiriting:")
     await callback.answer()
 
 
@@ -690,21 +690,21 @@ async def edit_description_start(callback: CallbackQuery, state: FSMContext):
 async def edit_description_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
     if not message.text:
-        await message.answer("❗ Tavsifni matn ko‘rinishida yuboring."); return
+        await message.answer("â Tavsifni matn koârinishida yuboring."); return
     product = await _finish_product_edit(message, state)
     if not product: return
     update_product(product["product_id"], product["name"], message.text.strip(), product["image"], product["price"], product["stock"])
-    await state.clear(); await message.answer("✅ Tavsif o‘zgartirildi.")
+    await state.clear(); await message.answer("â Tavsif oâzgartirildi.")
 
 
 @admin_router.callback_query(F.data.startswith("edit_image:"))
 async def edit_image_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+        await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     pid = callback.data.split(":", 1)[1]
     await state.clear(); await state.update_data(product_id=pid)
     await state.set_state(EditProductState.waiting_image)
-    await callback.message.answer("🖼 Yangi mahsulot rasmini yuboring:")
+    await callback.message.answer("ð¼ Yangi mahsulot rasmini yuboring:")
     await callback.answer()
 
 
@@ -714,22 +714,22 @@ async def edit_image_received(message: Message, state: FSMContext):
     product = await _finish_product_edit(message, state)
     if not product: return
     update_product(product["product_id"], product["name"], product["description"], message.photo[-1].file_id, product["price"], product["stock"])
-    await state.clear(); await message.answer("✅ Mahsulot rasmi o‘zgartirildi.")
+    await state.clear(); await message.answer("â Mahsulot rasmi oâzgartirildi.")
 
 
 @admin_router.message(EditProductState.waiting_image)
 async def edit_image_error(message: Message):
-    await message.answer("❗ Iltimos, rasm yuboring.")
+    await message.answer("â Iltimos, rasm yuboring.")
 
 
 @admin_router.callback_query(F.data.startswith("edit_stock:"))
 async def edit_stock_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+        await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     pid = callback.data.split(":", 1)[1]
     await state.clear(); await state.update_data(product_id=pid)
     await state.set_state(EditProductState.waiting_stock)
-    await callback.message.answer("📦 Yangi qoldiqni kiriting:")
+    await callback.message.answer("ð¦ Yangi qoldiqni kiriting:")
     await callback.answer()
 
 
@@ -738,13 +738,13 @@ async def edit_stock_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
     try: stock = int(message.text.strip())
     except (ValueError, AttributeError):
-        await message.answer("❗ Qoldiqni faqat raqam bilan kiriting."); return
+        await message.answer("â Qoldiqni faqat raqam bilan kiriting."); return
     if stock < 0:
-        await message.answer("❗ Qoldiq manfiy bo‘lishi mumkin emas."); return
+        await message.answer("â Qoldiq manfiy boâlishi mumkin emas."); return
     product = await _finish_product_edit(message, state)
     if not product: return
     update_product(product["product_id"], product["name"], product["description"], product["image"], product["price"], stock)
-    await state.clear(); await message.answer(f"✅ Qoldiq o‘zgartirildi: <b>{stock} dona</b>")
+    await state.clear(); await message.answer(f"â Qoldiq oâzgartirildi: <b>{stock} dona</b>")
 
 
 # ============================================================
@@ -754,21 +754,21 @@ async def edit_stock_received(message: Message, state: FSMContext):
 @admin_router.callback_query(F.data.startswith("product_variants:"))
 async def product_variants(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+        await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     pid = callback.data.split(":", 1)[1]
     product = get_product(pid)
     if not product:
-        await callback.answer("❌ Mahsulot topilmadi!", show_alert=True); return
+        await callback.answer("â Mahsulot topilmadi!", show_alert=True); return
     variants = get_product_variants(pid)
     builder = InlineKeyboardBuilder()
     for v in variants:
-        builder.button(text=f"🎨 {v['color_name']} — {v['price']:,} so‘m ({v['stock']})", callback_data=f"admin_variant:{v['id']}")
-    builder.button(text="➕ Rang qo‘shish", callback_data=f"admin_add_variant:{pid}")
-    builder.button(text="⬅️ Orqaga", callback_data=f"admin_product:{pid}")
+        builder.button(text=f"ð¨ {v['color_name']} â {v['price']:,} soâm ({v['stock']})", callback_data=f"admin_variant:{v['id']}")
+    builder.button(text="â Rang qoâshish", callback_data=f"admin_add_variant:{pid}")
+    builder.button(text="â¬ï¸ Orqaga", callback_data=f"admin_product:{pid}")
     builder.adjust(1)
     await callback.message.edit_text(
-        f"🎨 <b>{product['name']} — RANGLAR</b>\n\n"
-        + ("Rangni tanlang:" if variants else "Hozircha rang qo‘shilmagan."),
+        f"ð¨ <b>{product['name']} â RANGLAR</b>\n\n"
+        + ("Rangni tanlang:" if variants else "Hozircha rang qoâshilmagan."),
         reply_markup=builder.as_markup(),
     )
     await callback.answer()
@@ -777,11 +777,11 @@ async def product_variants(callback: CallbackQuery):
 @admin_router.callback_query(F.data.startswith("admin_add_variant:"))
 async def add_variant_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+        await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     pid = callback.data.split(":", 1)[1]
     await state.clear(); await state.update_data(product_id=pid)
     await state.set_state(AddVariantState.waiting_color_name)
-    await callback.message.answer("🎨 Rang nomini kiriting (masalan: Qora):")
+    await callback.message.answer("ð¨ Rang nomini kiriting (masalan: Qora):")
     await callback.answer()
 
 
@@ -789,10 +789,10 @@ async def add_variant_start(callback: CallbackQuery, state: FSMContext):
 async def variant_name_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
     if not message.text:
-        await message.answer("❗ Rang nomini kiriting."); return
+        await message.answer("â Rang nomini kiriting."); return
     await state.update_data(color_name=message.text.strip())
     await state.set_state(AddVariantState.waiting_color_code)
-    await message.answer("🔢 Rang kodini kiriting (masalan: #000000). Kerak bo‘lmasa - yuboring:")
+    await message.answer("ð¢ Rang kodini kiriting (masalan: #000000). Kerak boâlmasa - yuboring:")
 
 
 @admin_router.message(AddVariantState.waiting_color_code)
@@ -801,7 +801,7 @@ async def variant_code_received(message: Message, state: FSMContext):
     code = message.text.strip() if message.text else "-"
     await state.update_data(color_code=None if code == "-" else code)
     await state.set_state(AddVariantState.waiting_image)
-    await message.answer("🖼 Shu rangning rasmini yuboring:")
+    await message.answer("ð¼ Shu rangning rasmini yuboring:")
 
 
 @admin_router.message(AddVariantState.waiting_image, F.photo)
@@ -809,12 +809,12 @@ async def variant_image_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
     await state.update_data(image=message.photo[-1].file_id)
     await state.set_state(AddVariantState.waiting_price)
-    await message.answer("💰 Shu rangning narxini kiriting:")
+    await message.answer("ð° Shu rangning narxini kiriting:")
 
 
 @admin_router.message(AddVariantState.waiting_image)
 async def variant_image_error(message: Message):
-    await message.answer("❗ Iltimos, rasm yuboring.")
+    await message.answer("â Iltimos, rasm yuboring.")
 
 
 @admin_router.message(AddVariantState.waiting_price)
@@ -822,12 +822,12 @@ async def variant_price_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
     try: price = int(message.text.replace(" ", ""))
     except (ValueError, AttributeError):
-        await message.answer("❗ Narxni faqat raqam bilan kiriting."); return
+        await message.answer("â Narxni faqat raqam bilan kiriting."); return
     if price <= 0:
-        await message.answer("❗ Narx 0 dan katta bo‘lishi kerak."); return
+        await message.answer("â Narx 0 dan katta boâlishi kerak."); return
     await state.update_data(price=price)
     await state.set_state(AddVariantState.waiting_stock)
-    await message.answer("📦 Shu rangdan nechta dona bor?")
+    await message.answer("ð¦ Shu rangdan nechta dona bor?")
 
 
 @admin_router.message(AddVariantState.waiting_stock)
@@ -835,37 +835,37 @@ async def variant_stock_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
     try: stock = int(message.text.strip())
     except (ValueError, AttributeError):
-        await message.answer("❗ Qoldiqni faqat raqam bilan kiriting."); return
+        await message.answer("â Qoldiqni faqat raqam bilan kiriting."); return
     if stock < 0:
-        await message.answer("❗ Qoldiq manfiy bo‘lishi mumkin emas."); return
+        await message.answer("â Qoldiq manfiy boâlishi mumkin emas."); return
     data = await state.get_data()
     try:
         add_variant(data["product_id"], data["color_name"], data.get("color_code"), data["image"], data["price"], stock)
     except Exception as e:
-        print("❌ VARIANT ADD ERROR:", repr(e))
-        await state.clear(); await message.answer("❌ Rang qo‘shishda xatolik yuz berdi."); return
+        print("â VARIANT ADD ERROR:", repr(e))
+        await state.clear(); await message.answer("â Rang qoâshishda xatolik yuz berdi."); return
     await state.clear()
-    await message.answer(f"✅ <b>RANG QO‘SHILDI!</b>\n\n🎨 {data['color_name']}\n💰 {data['price']:,} so‘m\n📦 {stock} dona")
+    await message.answer(f"â <b>RANG QOâSHILDI!</b>\n\nð¨ {data['color_name']}\nð° {data['price']:,} soâm\nð¦ {stock} dona")
 
 
 @admin_router.callback_query(F.data.startswith("admin_variant:"))
 async def variant_detail(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+        await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     vid = int(callback.data.split(":", 1)[1])
     v = get_variant(vid)
     if not v:
-        await callback.answer("❌ Rang topilmadi!", show_alert=True); return
+        await callback.answer("â Rang topilmadi!", show_alert=True); return
     builder = InlineKeyboardBuilder()
-    builder.button(text="✏️ Tahrirlash", callback_data=f"edit_variant:{vid}")
-    builder.button(text="🗑 O‘chirish", callback_data=f"delete_variant:{vid}")
-    builder.button(text="⬅️ Ranglar", callback_data=f"product_variants:{v['product_id']}")
+    builder.button(text="âï¸ Tahrirlash", callback_data=f"edit_variant:{vid}")
+    builder.button(text="ð Oâchirish", callback_data=f"delete_variant:{vid}")
+    builder.button(text="â¬ï¸ Ranglar", callback_data=f"product_variants:{v['product_id']}")
     builder.adjust(1)
     await callback.message.edit_text(
-        f"🎨 <b>{v['color_name']}</b>\n\n"
-        f"🔢 Kod: <code>{v['color_code'] or '-'}</code>\n"
-        f"💰 Narx: <b>{v['price']:,} so‘m</b>\n"
-        f"📦 Qoldiq: <b>{v['stock']} dona</b>",
+        f"ð¨ <b>{v['color_name']}</b>\n\n"
+        f"ð¢ Kod: <code>{v['color_code'] or '-'}</code>\n"
+        f"ð° Narx: <b>{v['price']:,} soâm</b>\n"
+        f"ð¦ Qoldiq: <b>{v['stock']} dona</b>",
         reply_markup=builder.as_markup(),
     )
     await callback.answer()
@@ -874,137 +874,137 @@ async def variant_detail(callback: CallbackQuery):
 @admin_router.callback_query(F.data.startswith("delete_variant:"))
 async def delete_variant_handler(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+        await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     vid = int(callback.data.split(":", 1)[1])
     v = get_variant(vid)
     if not v:
-        await callback.answer("❌ Rang topilmadi!", show_alert=True); return
+        await callback.answer("â Rang topilmadi!", show_alert=True); return
     try:
         delete_variant(vid)
     except Exception as e:
-        print("❌ VARIANT DELETE ERROR:", repr(e))
-        await callback.answer("❌ Rangni o‘chirishda xatolik!", show_alert=True); return
-    await callback.message.edit_text("🗑 <b>Rang o‘chirildi.</b>", reply_markup=InlineKeyboardBuilder().button(text="⬅️ Ranglar", callback_data=f"product_variants:{v['product_id']}").as_markup())
-    await callback.answer("🗑 Rang o‘chirildi!")
+        print("â VARIANT DELETE ERROR:", repr(e))
+        await callback.answer("â Rangni oâchirishda xatolik!", show_alert=True); return
+    await callback.message.edit_text("ð <b>Rang oâchirildi.</b>", reply_markup=InlineKeyboardBuilder().button(text="â¬ï¸ Ranglar", callback_data=f"product_variants:{v['product_id']}").as_markup())
+    await callback.answer("ð Rang oâchirildi!")
 
 
 @admin_router.callback_query(F.data.startswith("edit_variant:"))
 async def edit_variant_menu(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+        await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     vid = int(callback.data.split(":", 1)[1]); v = get_variant(vid)
     if not v:
-        await callback.answer("❌ Rang topilmadi!", show_alert=True); return
+        await callback.answer("â Rang topilmadi!", show_alert=True); return
     builder = InlineKeyboardBuilder()
-    builder.button(text="🎨 Rang nomi", callback_data=f"edit_v_name:{vid}")
-    builder.button(text="🔢 Rang kodi", callback_data=f"edit_v_code:{vid}")
-    builder.button(text="🖼 Rasm", callback_data=f"edit_v_image:{vid}")
-    builder.button(text="💰 Narx", callback_data=f"edit_v_price:{vid}")
-    builder.button(text="📦 Qoldiq", callback_data=f"edit_v_stock:{vid}")
-    builder.button(text="⬅️ Orqaga", callback_data=f"admin_variant:{vid}")
+    builder.button(text="ð¨ Rang nomi", callback_data=f"edit_v_name:{vid}")
+    builder.button(text="ð¢ Rang kodi", callback_data=f"edit_v_code:{vid}")
+    builder.button(text="ð¼ Rasm", callback_data=f"edit_v_image:{vid}")
+    builder.button(text="ð° Narx", callback_data=f"edit_v_price:{vid}")
+    builder.button(text="ð¦ Qoldiq", callback_data=f"edit_v_stock:{vid}")
+    builder.button(text="â¬ï¸ Orqaga", callback_data=f"admin_variant:{vid}")
     builder.adjust(1)
-    await callback.message.edit_text(f"✏️ <b>{v['color_name']}</b>\n\nNimani o‘zgartirmoqchisiz?", reply_markup=builder.as_markup())
+    await callback.message.edit_text(f"âï¸ <b>{v['color_name']}</b>\n\nNimani oâzgartirmoqchisiz?", reply_markup=builder.as_markup())
     await callback.answer()
 
 
 @admin_router.callback_query(F.data.startswith("edit_v_name:"))
 async def edit_v_name_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+        await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     vid = int(callback.data.split(":", 1)[1]); v = get_variant(vid)
-    if not v: await callback.answer("❌ Rang topilmadi!", show_alert=True); return
+    if not v: await callback.answer("â Rang topilmadi!", show_alert=True); return
     await state.clear(); await state.update_data(variant_id=vid); await state.set_state(EditVariantState.waiting_color_name)
-    await callback.message.answer("🎨 Yangi rang nomini kiriting:"); await callback.answer()
+    await callback.message.answer("ð¨ Yangi rang nomini kiriting:"); await callback.answer()
 
 
 @admin_router.message(EditVariantState.waiting_color_name)
 async def edit_v_name_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
-    if not message.text: await message.answer("❗ Rang nomini kiriting."); return
+    if not message.text: await message.answer("â Rang nomini kiriting."); return
     data = await state.get_data(); v = get_variant(data["variant_id"])
-    if not v: await state.clear(); await message.answer("❌ Rang topilmadi."); return
+    if not v: await state.clear(); await message.answer("â Rang topilmadi."); return
     update_variant(data["variant_id"], message.text.strip(), v["color_code"], v["image"], v["price"], v["stock"])
-    await state.clear(); await message.answer("✅ Rang nomi o‘zgartirildi.")
+    await state.clear(); await message.answer("â Rang nomi oâzgartirildi.")
 
 
 @admin_router.callback_query(F.data.startswith("edit_v_code:"))
 async def edit_v_code_start(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id): await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+    if not is_admin(callback.from_user.id): await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     vid = int(callback.data.split(":", 1)[1]); await state.clear(); await state.update_data(variant_id=vid); await state.set_state(EditVariantState.waiting_color_code)
-    await callback.message.answer("🔢 Yangi rang kodini kiriting. O‘chirish uchun - yuboring:"); await callback.answer()
+    await callback.message.answer("ð¢ Yangi rang kodini kiriting. Oâchirish uchun - yuboring:"); await callback.answer()
 
 
 @admin_router.message(EditVariantState.waiting_color_code)
 async def edit_v_code_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
     data = await state.get_data(); v = get_variant(data["variant_id"])
-    if not v: await state.clear(); await message.answer("❌ Rang topilmadi."); return
+    if not v: await state.clear(); await message.answer("â Rang topilmadi."); return
     code = message.text.strip() if message.text else "-"
     update_variant(data["variant_id"], v["color_name"], None if code == "-" else code, v["image"], v["price"], v["stock"])
-    await state.clear(); await message.answer("✅ Rang kodi o‘zgartirildi.")
+    await state.clear(); await message.answer("â Rang kodi oâzgartirildi.")
 
 
 @admin_router.callback_query(F.data.startswith("edit_v_image:"))
 async def edit_v_image_start(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id): await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+    if not is_admin(callback.from_user.id): await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     vid = int(callback.data.split(":", 1)[1]); await state.clear(); await state.update_data(variant_id=vid); await state.set_state(EditVariantState.waiting_image)
-    await callback.message.answer("🖼 Yangi rang rasmini yuboring:"); await callback.answer()
+    await callback.message.answer("ð¼ Yangi rang rasmini yuboring:"); await callback.answer()
 
 
 @admin_router.message(EditVariantState.waiting_image, F.photo)
 async def edit_v_image_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
     data = await state.get_data(); v = get_variant(data["variant_id"])
-    if not v: await state.clear(); await message.answer("❌ Rang topilmadi."); return
+    if not v: await state.clear(); await message.answer("â Rang topilmadi."); return
     update_variant(data["variant_id"], v["color_name"], v["color_code"], message.photo[-1].file_id, v["price"], v["stock"])
-    await state.clear(); await message.answer("✅ Rang rasmi o‘zgartirildi.")
+    await state.clear(); await message.answer("â Rang rasmi oâzgartirildi.")
 
 
 @admin_router.message(EditVariantState.waiting_image)
 async def edit_v_image_error(message: Message):
-    await message.answer("❗ Iltimos, rasm yuboring.")
+    await message.answer("â Iltimos, rasm yuboring.")
 
 
 @admin_router.callback_query(F.data.startswith("edit_v_price:"))
 async def edit_v_price_start(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id): await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+    if not is_admin(callback.from_user.id): await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     vid = int(callback.data.split(":", 1)[1]); await state.clear(); await state.update_data(variant_id=vid); await state.set_state(EditVariantState.waiting_price)
-    await callback.message.answer("💰 Yangi narxni kiriting:"); await callback.answer()
+    await callback.message.answer("ð° Yangi narxni kiriting:"); await callback.answer()
 
 
 @admin_router.message(EditVariantState.waiting_price)
 async def edit_v_price_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
     try: price = int(message.text.replace(" ", ""))
-    except (ValueError, AttributeError): await message.answer("❗ Narxni faqat raqam bilan kiriting."); return
-    if price <= 0: await message.answer("❗ Narx 0 dan katta bo‘lishi kerak."); return
+    except (ValueError, AttributeError): await message.answer("â Narxni faqat raqam bilan kiriting."); return
+    if price <= 0: await message.answer("â Narx 0 dan katta boâlishi kerak."); return
     data = await state.get_data(); v = get_variant(data["variant_id"])
-    if not v: await state.clear(); await message.answer("❌ Rang topilmadi."); return
+    if not v: await state.clear(); await message.answer("â Rang topilmadi."); return
     update_variant(data["variant_id"], v["color_name"], v["color_code"], v["image"], price, v["stock"])
-    await state.clear(); await message.answer(f"✅ Rang narxi o‘zgartirildi: <b>{price:,} so‘m</b>")
+    await state.clear(); await message.answer(f"â Rang narxi oâzgartirildi: <b>{price:,} soâm</b>")
 
 
 @admin_router.callback_query(F.data.startswith("edit_v_stock:"))
 async def edit_v_stock_start(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id): await callback.answer("⛔ Ruxsat yo‘q!", show_alert=True); return
+    if not is_admin(callback.from_user.id): await callback.answer("â Ruxsat yoâq!", show_alert=True); return
     vid = int(callback.data.split(":", 1)[1]); await state.clear(); await state.update_data(variant_id=vid); await state.set_state(EditVariantState.waiting_stock)
-    await callback.message.answer("📦 Yangi qoldiqni kiriting:"); await callback.answer()
+    await callback.message.answer("ð¦ Yangi qoldiqni kiriting:"); await callback.answer()
 
 
 @admin_router.message(EditVariantState.waiting_stock)
 async def edit_v_stock_received(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id): return
     try: stock = int(message.text.strip())
-    except (ValueError, AttributeError): await message.answer("❗ Qoldiqni faqat raqam bilan kiriting."); return
-    if stock < 0: await message.answer("❗ Qoldiq manfiy bo‘lishi mumkin emas."); return
+    except (ValueError, AttributeError): await message.answer("â Qoldiqni faqat raqam bilan kiriting."); return
+    if stock < 0: await message.answer("â Qoldiq manfiy boâlishi mumkin emas."); return
     data = await state.get_data(); v = get_variant(data["variant_id"])
-    if not v: await state.clear(); await message.answer("❌ Rang topilmadi."); return
+    if not v: await state.clear(); await message.answer("â Rang topilmadi."); return
     update_variant(data["variant_id"], v["color_name"], v["color_code"], v["image"], v["price"], stock)
-    await state.clear(); await message.answer(f"✅ Rang qoldig‘i o‘zgartirildi: <b>{stock} dona</b>")
+    await state.clear(); await message.answer(f"â Rang qoldigâi oâzgartirildi: <b>{stock} dona</b>")
 
 
 # ============================================================
-# MAHSULOTNI O‘CHIRISH
+# MAHSULOTNI OâCHIRISH
 # ============================================================
 
 @admin_router.callback_query(
@@ -1017,7 +1017,7 @@ async def delete_product_handler(
     if not is_admin(callback.from_user.id):
 
         await callback.answer(
-            "⛔ Ruxsat yo‘q!",
+            "â Ruxsat yoâq!",
             show_alert=True,
         )
 
@@ -1030,7 +1030,7 @@ async def delete_product_handler(
     if not product:
 
         await callback.answer(
-            "❌ Mahsulot topilmadi!",
+            "â Mahsulot topilmadi!",
             show_alert=True,
         )
 
@@ -1043,29 +1043,29 @@ async def delete_product_handler(
     except Exception as e:
 
         print(
-            "❌ DELETE PRODUCT ERROR:",
+            "â DELETE PRODUCT ERROR:",
             repr(e),
         )
 
         await callback.answer(
-            "❌ O‘chirishda xatolik!",
+            "â Oâchirishda xatolik!",
             show_alert=True,
         )
 
         return
 
     await callback.message.edit_text(
-        "🗑 <b>Mahsulot o‘chirildi.</b>",
+        "ð <b>Mahsulot oâchirildi.</b>",
         reply_markup=InlineKeyboardBuilder()
         .button(
-            text="⬅️ Mahsulotlar",
+            text="â¬ï¸ Mahsulotlar",
             callback_data="admin_products",
         )
         .as_markup(),
     )
 
     await callback.answer(
-        "🗑 Mahsulot o‘chirildi!"
+        "ð Mahsulot oâchirildi!"
     )
 
 
@@ -1083,7 +1083,7 @@ async def admin_orders(
     if not is_admin(callback.from_user.id):
 
         await callback.answer(
-            "⛔ Ruxsat yo‘q!",
+            "â Ruxsat yoâq!",
             show_alert=True,
         )
 
@@ -1096,13 +1096,13 @@ async def admin_orders(
     if not orders:
 
         builder.button(
-            text="⬅️ Admin panel",
+            text="â¬ï¸ Admin panel",
             callback_data="admin_back",
         )
 
         await callback.message.edit_text(
-            "📋 <b>BUYURTMALAR</b>\n\n"
-            "Hozircha buyurtmalar yo‘q.",
+            "ð <b>BUYURTMALAR</b>\n\n"
+            "Hozircha buyurtmalar yoâq.",
             reply_markup=builder.as_markup(),
         )
 
@@ -1115,17 +1115,17 @@ async def admin_orders(
         status = order["status"]
 
         emoji = {
-            "new": "🆕",
-            "accepted": "🟢",
-            "delivery": "🚚",
-            "delivered": "✅",
-            "cancelled": "🔴",
-        }.get(status, "📦")
+            "new": "ð",
+            "accepted": "ð¢",
+            "delivery": "ð",
+            "delivered": "â",
+            "cancelled": "ð´",
+        }.get(status, "ð¦")
 
         builder.button(
             text=(
-                f"{emoji} #{order['id']} — "
-                f"{order['total']:,} so‘m"
+                f"{emoji} #{order['id']} â "
+                f"{order['total']:,} soâm"
             ),
             callback_data=(
                 f"admin_order:{order['id']}"
@@ -1133,14 +1133,14 @@ async def admin_orders(
         )
 
     builder.button(
-        text="⬅️ Admin panel",
+        text="â¬ï¸ Admin panel",
         callback_data="admin_back",
     )
 
     builder.adjust(1)
 
     await callback.message.edit_text(
-        "📋 <b>BUYURTMALAR</b>\n\n"
+        "ð <b>BUYURTMALAR</b>\n\n"
         "Buyurtmani tanlang:",
         reply_markup=builder.as_markup(),
     )
@@ -1162,7 +1162,7 @@ async def admin_order_detail(
     if not is_admin(callback.from_user.id):
 
         await callback.answer(
-            "⛔ Ruxsat yo‘q!",
+            "â Ruxsat yoâq!",
             show_alert=True,
         )
 
@@ -1177,7 +1177,7 @@ async def admin_order_detail(
     if not order:
 
         await callback.answer(
-            "❌ Buyurtma topilmadi!",
+            "â Buyurtma topilmadi!",
             show_alert=True,
         )
 
@@ -1186,61 +1186,61 @@ async def admin_order_detail(
     items = get_order_items(order_id)
 
     text = (
-        f"📦 <b>BUYURTMA #{order['id']}</b>\n\n"
+        f"ð¦ <b>BUYURTMA #{order['id']}</b>\n\n"
     )
 
     for item in items:
 
         text += (
-            f"• {item['product_name']} × "
+            f"â¢ {item['product_name']} Ã "
             f"{item['quantity']}\n"
-            f"  💰 {item['subtotal']:,} so‘m\n\n"
+            f"  ð° {item['subtotal']:,} soâm\n\n"
         )
 
     text += (
-        f"💵 <b>Jami:</b> "
-        f"{order['total']:,} so‘m\n\n"
-        f"👤 <b>Ism:</b> {order['name']}\n"
-        f"📞 <b>Telefon:</b> {order['phone']}\n"
-        f"📍 <b>Manzil:</b> {order['address']}\n"
-        f"🆔 <b>Telegram ID:</b> "
+        f"ðµ <b>Jami:</b> "
+        f"{order['total']:,} soâm\n\n"
+        f"ð¤ <b>Ism:</b> {order['name']}\n"
+        f"ð <b>Telefon:</b> {order['phone']}\n"
+        f"ð <b>Manzil:</b> {order['address']}\n"
+        f"ð <b>Telegram ID:</b> "
         f"{order['telegram_id']}\n\n"
-        f"📊 <b>Status:</b> "
+        f"ð <b>Status:</b> "
         f"{order['status']}"
     )
 
     builder = InlineKeyboardBuilder()
 
     builder.button(
-        text="🟢 Qabul qilish",
+        text="ð¢ Qabul qilish",
         callback_data=(
             f"order_status:accepted:{order_id}"
         ),
     )
 
     builder.button(
-        text="🚚 Yetkazilmoqda",
+        text="ð Yetkazilmoqda",
         callback_data=(
             f"order_status:delivery:{order_id}"
         ),
     )
 
     builder.button(
-        text="✅ Yetkazildi",
+        text="â Yetkazildi",
         callback_data=(
             f"order_status:delivered:{order_id}"
         ),
     )
 
     builder.button(
-        text="❌ Bekor qilish",
+        text="â Bekor qilish",
         callback_data=(
             f"order_status:cancelled:{order_id}"
         ),
     )
 
     builder.button(
-        text="⬅️ Buyurtmalar",
+        text="â¬ï¸ Buyurtmalar",
         callback_data="admin_orders",
     )
 
@@ -1255,7 +1255,7 @@ async def admin_order_detail(
 
 
 # ============================================================
-# STATUS O‘ZGARTIRISH
+# STATUS OâZGARTIRISH
 # ============================================================
 
 @admin_router.callback_query(
@@ -1268,7 +1268,7 @@ async def order_status_handler(
     if not is_admin(callback.from_user.id):
 
         await callback.answer(
-            "⛔ Ruxsat yo‘q!",
+            "â Ruxsat yoâq!",
             show_alert=True,
         )
 
@@ -1288,22 +1288,22 @@ async def order_status_handler(
     except Exception as e:
 
         print(
-            "❌ STATUS ERROR:",
+            "â STATUS ERROR:",
             repr(e),
         )
 
         await callback.answer(
-            "❌ Statusni o‘zgartirishda xatolik!",
+            "â Statusni oâzgartirishda xatolik!",
             show_alert=True,
         )
 
         return
 
     status_names = {
-        "accepted": "🟢 QABUL QILINDI",
-        "delivery": "🚚 YETKAZILMOQDA",
-        "delivered": "✅ YETKAZILDI",
-        "cancelled": "🔴 BEKOR QILINDI",
+        "accepted": "ð¢ QABUL QILINDI",
+        "delivery": "ð YETKAZILMOQDA",
+        "delivered": "â YETKAZILDI",
+        "cancelled": "ð´ BEKOR QILINDI",
     }
 
     await callback.answer(
@@ -1327,7 +1327,7 @@ async def admin_customers(
     if not is_admin(callback.from_user.id):
 
         await callback.answer(
-            "⛔ Ruxsat yo‘q!",
+            "â Ruxsat yoâq!",
             show_alert=True,
         )
 
@@ -1338,7 +1338,7 @@ async def admin_customers(
     builder = InlineKeyboardBuilder()
 
     builder.button(
-        text="⬅️ Admin panel",
+        text="â¬ï¸ Admin panel",
         callback_data="admin_back",
     )
 
@@ -1347,8 +1347,8 @@ async def admin_customers(
     if not customers:
 
         await callback.message.edit_text(
-            "👥 <b>MIJOZLAR</b>\n\n"
-            "Hozircha mijozlar yo‘q.",
+            "ð¥ <b>MIJOZLAR</b>\n\n"
+            "Hozircha mijozlar yoâq.",
             reply_markup=builder.as_markup(),
         )
 
@@ -1356,15 +1356,15 @@ async def admin_customers(
 
         return
 
-    text = "👥 <b>MIJOZLAR</b>\n\n"
+    text = "ð¥ <b>MIJOZLAR</b>\n\n"
 
     for customer in customers[:20]:
 
         text += (
-            f"👤 <b>{customer['name'] or '-'}</b>\n"
-            f"📞 {customer['phone'] or '-'}\n"
-            f"📍 {customer['address'] or '-'}\n"
-            f"🆔 {customer['telegram_id']}\n\n"
+            f"ð¤ <b>{customer['name'] or '-'}</b>\n"
+            f"ð {customer['phone'] or '-'}\n"
+            f"ð {customer['address'] or '-'}\n"
+            f"ð {customer['telegram_id']}\n\n"
         )
 
     await callback.message.edit_text(
@@ -1387,7 +1387,7 @@ async def admin_stats(
 ):
     if not is_admin(callback.from_user.id):
         await callback.answer(
-            "⛔ Ruxsat yo‘q!",
+            "â Ruxsat yoâq!",
             show_alert=True,
         )
         return
@@ -1396,23 +1396,23 @@ async def admin_stats(
         stats = get_statistics()
 
         text = (
-            "📊 <b>STATISTIKA</b>\n\n"
-            f"📦 Mahsulotlar: <b>{stats['products']}</b>\n"
-            f"👥 Mijozlar: <b>{stats['customers']}</b>\n"
-            f"📋 Buyurtmalar: <b>{stats['orders']}</b>\n"
-            f"✅ Yetkazilgan: <b>{stats['delivered']}</b>\n"
-            f"💰 Tushum: <b>{stats['revenue']:,} so‘m</b>"
+            "ð <b>STATISTIKA</b>\n\n"
+            f"ð¦ Mahsulotlar: <b>{stats['products']}</b>\n"
+            f"ð¥ Mijozlar: <b>{stats['customers']}</b>\n"
+            f"ð Buyurtmalar: <b>{stats['orders']}</b>\n"
+            f"â Yetkazilgan: <b>{stats['delivered']}</b>\n"
+            f"ð° Tushum: <b>{stats['revenue']:,} soâm</b>"
         )
 
         builder = InlineKeyboardBuilder()
 
         builder.button(
-            text="🔄 Yangilash",
+            text="ð Yangilash",
             callback_data="admin_stats",
         )
 
         builder.button(
-            text="⬅️ Admin panel",
+            text="â¬ï¸ Admin panel",
             callback_data="admin_back",
         )
 
@@ -1433,17 +1433,17 @@ async def admin_stats(
                 raise
 
         await callback.answer(
-            "🔄 Statistika yangilandi!"
+            "ð Statistika yangilandi!"
         )
 
     except Exception as e:
 
         print(
-            "❌ ADMIN STATISTICS ERROR:",
+            "â ADMIN STATISTICS ERROR:",
             repr(e),
         )
 
         await callback.answer(
-            "❌ Statistikani yuklashda xatolik!",
+            "â Statistikani yuklashda xatolik!",
             show_alert=True,
         )
